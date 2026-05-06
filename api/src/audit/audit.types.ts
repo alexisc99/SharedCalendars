@@ -1,0 +1,31 @@
+export type AuditAction =
+  | 'CALENDAR_CREATE'
+  | 'CALENDAR_DELETE'
+  | 'EVENT_CREATE'
+  | 'EVENT_PUBLISH'
+  | 'EVENT_DELETE'
+  | 'FILE_UPLOAD'
+  | 'FILE_DELETE'
+  | 'COMMENT_CREATE'
+  | 'COMMENT_DELETE'
+  | 'RSVP_UPDATE'
+  | 'GOOGLE_EVENT_UPDATED'
+  | 'GOOGLE_EVENT_IMPORTED'
+  | 'GOOGLE_EVENT_EXPORTED'
+  | 'GOOGLE_EVENT_DELETED'
+  | 'GROUP_PLAN_CREATED'
+  | 'GROUP_PLAN_DOWNGRADED'
+  | 'GROUP_PLAN_EXPIRED'
+  | 'GROUP_PLAN_RENEWED'
+  | 'CALENDAR_INVITATION_CREATED'
+  | 'GROUP_PLAN_EXPIRY_WARNING'
+  | 'GROUP_PLAN_EXPIRED_NOTICE'
+  | 'GROUP_PLAN_FINAL_REMINDER';
+
+export interface AuditLogInput {
+  userId: string;
+  action: AuditAction;
+  entity: string;
+  entityId?: string;
+  metadata?: Record<string, any>;
+}

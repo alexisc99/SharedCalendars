@@ -1,0 +1,362 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum CalendarSyncMode {
+  NONE
+  MANUAL
+  AUTO
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FileVisibility {
+  PRIVATE
+  CALENDAR
+  EVENT
+}
+
+enum EventType {
+  STANDARD
+  ANNIVERSARY
+  POLL
+}
+
+enum EventStatus {
+  PUBLISHED
+  PENDING
+}
+
+enum RsvpStatus {
+  YES
+  MAYBE
+  NO
+}
+
+enum PollOptionType {
+  DATE
+  LOCATION
+}
+
+enum MemberRole {
+  owner
+  admin
+  editor
+  viewer
+  member
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String?
+  name      String?
+  avatarUrl String?
+  isPremium Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  calendars                   Calendar[]                   @relation("UserCalendars")
+  memberships                 CalendarMember[]
+  events                      Event[]                      @relation("EventCreator")
+  comments                    Comment[]
+  rsvps                       EventRsvp[]
+  PollVote                    PollVote[]
+  notifications               Notification[]
+  files                       File[]
+  auditLogs                   AuditLog[]
+  externalCalendars           ExternalCalendar[]
+  GroupPlan                   GroupPlan[]
+  userNotificationPreferences UserNotificationPreference[]
+}
+
+model Calendar {
+  id            String   @id @default(uuid())
+  name          String
+  color         String? //couleur basique
+  theme         String? //premium only themes
+  coverImageUrl String? //premium cover iamge
+  createdAt     DateTime @default(now())
+  ownerId       String
+
+  owner           User             @relation("UserCalendars", fields: [ownerId], references: [id])
+  members         CalendarMember[]
+  events          Event[]
+  //Pour les calendriers premium
+  isPremium       Boolean          @default(false)
+  premiumSeats    Int? //nombre max de membres autorisés dans calendrier premium
+  groupPlanId     String?          @unique
+  groupPlan       GroupPlan?
+  // 👇 AJOUT IMPORTANT pour corriger l’erreur
+  invitationLinks InvitationLink[]
+  files           File[]
+
+  // Public ICS read-only (optional)
+  publicIcsEnabled Boolean @default(false)
+  publicIcsToken   String? @unique
+
+  syncMode CalendarSyncMode @default(MANUAL)
+}
+
+model CalendarMember {
+  id         String     @id @default(uuid())
+  calendarId String
+  userId     String
+  role       MemberRole // 'owner','admin','editor','viewer','member'
+  joinedAt   DateTime   @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  calendar Calendar @relation(fields: [calendarId], references: [id])
+
+  @@unique([calendarId, userId])
+}
+
+model InvitationLink {
+  id         String   @id @default(uuid())
+  calendarId String
+  token      String   @unique
+  createdAt  DateTime @default(now())
+
+  calendar Calendar @relation(fields: [calendarId], references: [id])
+}
+
+model Event {
+  id         String   @id @default(cuid())
+  calendarId String
+  calendar   Calendar @relation(fields: [calendarId], references: [id])
+
+  creatorId String
+  creator   User   @relation("EventCreator", fields: [creatorId], references: [id])
+
+  title       String
+  description String?
+  location    String?
+  locationAddress String? //utile pour créer un lien google maps
+
+  startDateTime DateTime
+  endDateTime   DateTime
+
+  type           EventType   @default(STANDARD)
+  recurrenceRule String? // RRULE iCal, pour la suite
+  status         EventStatus @default(PUBLISHED)
+
+  reminders   EventReminder[]
+  rsvps       EventRsvp[]
+  comments    Comment[]
+  pollOptions PollOption[]
+
+  finalizedOptionId String? @unique
+  finalizedEventId  String? @unique
+
+  finalizedOption PollOption? @relation("PollFinalizationOption", fields: [finalizedOptionId], references: [id])
+  finalizedEvent  Event?      @relation("PollFinalizationEvent", fields: [finalizedEventId], references: [id])
+  pollFinalizedBy Event[]     @relation("PollFinalizationEvent")
+
+  googleEventId    String?
+  googleCalendarId String? //"primary" ou id google
+  googleSyncedAt   DateTime?
+  googleImportedAt DateTime?
+  source           String    @default("MYAPP")
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  notifications Notification[]
+  files         File[]
+
+  @@unique([calendarId, googleEventId])
+  @@index([calendarId, startDateTime, id]) //pagination calendar list
+  @@index([startDateTime, id]) //feed multi-calendriers
+  @@index([calendarId, status, startDateTime])
+  @@index([calendarId, updatedAt]) //utile pour ICS lastmodifified
+}
+
+model EventReminder {
+  id            String @id @default(cuid())
+  eventId       String
+  event         Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  minutesBefore Int
+
+  createdAt DateTime @default(now())
+}
+
+model EventRsvp {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status    RsvpStatus
+  updatedAt DateTime   @default(now())
+
+  @@unique([eventId, userId])
+}
+
+model Comment {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([eventId, createdAt, id]) // pagination comments
+}
+
+model PollOption {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  label      String // ex: "12 Jan 19:00" ou "Maison de Julie"
+  optionType PollOptionType // DATE ou LOCATION
+
+  votes       PollVote[]
+  finalizedBy Event?     @relation("PollFinalizationOption")
+}
+
+model PollVote {
+  id       String     @id @default(cuid())
+  optionId String
+  option   PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([optionId, userId])
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  type    String // ex: EVENT_CREATED, COMMENT_ADDED, POLL_VOTE etc.
+  title   String
+  message String?
+
+  eventId String?
+  event   Event?  @relation(fields: [eventId], references: [id])
+
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([userId, createdAt, id]) // pagination notifications
+  @@index([userId, readAt])
+}
+
+model File {
+  id       String @id @default(cuid())
+  filename String
+  mimeType String
+  size     Int
+
+  storagePath String // chemin réel sur le disque
+  visibility  FileVisibility
+
+  uploadedById String
+  uploadedBy   User   @relation(fields: [uploadedById], references: [id])
+
+  calendarId String?
+  calendar   Calendar? @relation(fields: [calendarId], references: [id])
+
+  eventId String?
+  event   Event?  @relation(fields: [eventId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([eventId, createdAt, id]) // pagination files par event
+  @@index([calendarId, createdAt, id]) // si tu listes les fichiers par calendrier un jour
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt, id]) // pagination audit
+  @@index([entity, entityId, createdAt])
+}
+
+enum ExternalProvider {
+  GOOGLE
+}
+
+model ExternalCalendar {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  provider ExternalProvider
+
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+}
+
+model GoogleWatchChannel {
+  id         String   @id
+  userId     String
+  resourceId String
+  expiration DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+model GroupPlan {
+  id      String @id @default(uuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  seats     Int
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+
+  calendarId String?   @unique
+  calendar   Calendar? @relation(fields: [calendarId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL // pas encore utilisé
+}
+
+model UserNotificationPreference {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String // ex: EVENT_CREATED, COMMENT_ADDED, POLL_VOTE, etc.
+  channel NotificationChannel @default(IN_APP)
+  enabled Boolean             @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type, channel])
+  @@index([userId])
+}
