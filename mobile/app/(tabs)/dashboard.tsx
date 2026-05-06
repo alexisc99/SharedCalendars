@@ -53,6 +53,15 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: 40 }}>
+      <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+        <Pressable
+          onPress={() => router.push("/profile")}
+          style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1 }}
+        >
+          <Text>Profil</Text>
+        </Pressable>
+      </View>
+
       {/* Notifications */}
       <Pressable
         onPress={() => router.push("/(tabs)/notifications")}

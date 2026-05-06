@@ -7,6 +7,7 @@ type SessionState = {
   isBootstrapping: boolean;
   me: MeResponse | null;
   login: (email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
 };
@@ -49,13 +50,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     await refreshMe();
   }
 
+  async function signup(name: string, email: string, password: string) {
+    const res = await api.post<LoginResponse>("/auth/signup", { name, email, password });
+    await saveToken(res.data.access_token);
+    await refreshMe();
+  }
+
   async function logout() {
     await clearToken();
     setMe(null);
   }
 
   const value = useMemo(
-    () => ({ isBootstrapping, me, login, logout, refreshMe }),
+    () => ({ isBootstrapping, me, login, signup, logout, refreshMe }),
     [isBootstrapping, me]
   );
 

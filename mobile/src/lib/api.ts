@@ -49,10 +49,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const payload: NestError | undefined = json ?? undefined;
-    const msg =
-      (payload?.message && Array.isArray(payload.message)
-        ? payload.message.join(", ")
-        : payload?.message) || `HTTP ${res.status}`;
+    const raw = payload?.message;
+    const msg = (Array.isArray(raw) ? raw.join(", ") : raw) || `HTTP ${res.status}`;
 
     throw new ApiError(res.status, msg, payload);
   }

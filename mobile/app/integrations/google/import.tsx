@@ -218,7 +218,9 @@ export default function GoogleImportScreen() {
         <View style={{ flex: 1, padding: 16, gap: 12 }}>
           <Text style={{ color: "red" }}>{error}</Text>
           <Pressable
-            onPress={loadFirst}
+            onPress={() => {
+              if (targetCalendarId) loadFirst(targetCalendarId);
+            }}
             style={{
               padding: 12,
               borderRadius: 10,
@@ -364,7 +366,9 @@ export default function GoogleImportScreen() {
               ) : null
             }
             ListEmptyComponent={<Text>Aucun événement importable</Text>}
-            onRefresh={loadFirst}
+            onRefresh={() => {
+              if (targetCalendarId) loadFirst(targetCalendarId);
+            }}
             refreshing={loadingFirst}
           />
         </View>

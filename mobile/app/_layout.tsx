@@ -12,7 +12,7 @@ function AuthGate() {
   const pathname = usePathname();
 
   // routes publiques
-  const isPublicRoute = pathname === "/login";
+  const isPublicRoute = pathname === "/login" || pathname === "/signup";
 
   useEffect(() => {
     if (isBootstrapping) return;
@@ -21,10 +21,10 @@ function AuthGate() {
       router.replace("/login");
     }
 
-    if (me && pathname === "/login") {
+    if (me && isPublicRoute) {
       router.replace("/(tabs)");
     }
-  }, [isBootstrapping, me, isPublicRoute, pathname, router]);
+  }, [isBootstrapping, me, isPublicRoute, router]);
 
   if (isBootstrapping) {
     return (
