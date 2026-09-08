@@ -150,6 +150,55 @@ export default function CalendarHomeScreen() {
           >
             <Text>ICS public</Text>
           </Pressable>
+
+          {data?.permissions.canInvite ? (
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: "/calendars/[id]/invite", params: { id } })
+              }
+              style={{
+                padding: 12,
+                borderRadius: 10,
+                alignItems: "center",
+                borderWidth: 1,
+                marginTop: 8,
+              }}
+            >
+              <Text>Inviter un membre</Text>
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            onPress={() =>
+              router.push({ pathname: "/calendars/[id]/members", params: { id } })
+            }
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              alignItems: "center",
+              borderWidth: 1,
+              marginTop: 8,
+            }}
+          >
+            <Text>Membres</Text>
+          </Pressable>
+
+          {data?.permissions.canEdit ? (
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: "/calendars/[id]/edit", params: { id } })
+              }
+              style={{
+                padding: 12,
+                borderRadius: 10,
+                alignItems: "center",
+                borderWidth: 1,
+                marginTop: 8,
+              }}
+            >
+              <Text>Modifier le calendrier</Text>
+            </Pressable>
+          ) : null}
         </View>
       )}
     </View>

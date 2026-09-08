@@ -2,6 +2,8 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
+  Delete,
   Body,
   Req,
   Param,
@@ -10,6 +12,8 @@ import {
 import { CalendarsService } from './calendars.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateCalendarDto } from './dto/create-calendar.dto';
+import { UpdateCalendarDto } from './dto/update-calendar.dto';
+import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { User } from '../auth/decorators/user.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -97,5 +101,54 @@ export class CalendarsController {
       success: true,
       data: result,
     };
+  }
+
+  @Patch(':id')
+  async update(
+    @User('sub') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateCalendarDto,
+  ) {
+    const result = await this.calendarsService.update(userId, id, dto);
+    return { success: true, id: result.id, data: result };
+  }
+
+  @Delete(':id')
+  async remove(@User('sub') userId: string, @Param('id') id: string) {
+    return this.calendarsService.remove(userId, id);
+  }
+
+  @Get(':id/members')
+  listMembers(@User('sub') userId: string, @Param('id') id: string) {
+    return this.calendarsService.listMembers(userId, id);
+  }
+
+  @Patch(':id/members/:userId')
+  async updateMemberRole(
+    @User('sub') actorUserId: string,
+    @Param('id') calendarId: string,
+    @Param('userId') targetUserId: string,
+    @Body() dto: UpdateMemberRoleDto,
+  ) {
+    const result = await this.calendarsService.updateMemberRole(
+      actorUserId,
+      calendarId,
+      targetUserId,
+      dto.role,
+    );
+    return { success: true, data: result };
+  }
+
+  @Delete(':id/members/:userId')
+  async removeMember(
+    @User('sub') actorUserId: string,
+    @Param('id') calendarId: string,
+    @Param('userId') targetUserId: string,
+  ) {
+    return this.calendarsService.removeMember(
+      actorUserId,
+      calendarId,
+      targetUserId,
+    );
   }
 }

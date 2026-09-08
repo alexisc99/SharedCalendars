@@ -63,6 +63,21 @@ export default function CalendarsScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
+      <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
+        <Pressable
+          onPress={() => router.push("/calendars/new")}
+          style={{ flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, alignItems: "center" }}
+        >
+          <Text>+ Nouveau</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push("/join")}
+          style={{ flex: 1, padding: 10, borderRadius: 8, borderWidth: 1, alignItems: "center" }}
+        >
+          <Text>Rejoindre via lien</Text>
+        </Pressable>
+      </View>
+
       <FlatList
         data={items}
         keyExtractor={(c) => c.id}
