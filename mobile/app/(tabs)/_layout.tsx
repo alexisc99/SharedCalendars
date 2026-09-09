@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
@@ -9,6 +10,7 @@ import { useSession } from "@/src/lib/session";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const insets = useSafeAreaInsets();
   const me = useSession().me;
   const unread = me?.notifications?.unreadCount ?? 0;
   return (
@@ -17,13 +19,13 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
         headerShown: false,
         tabBarButton: HapticTab,
+        sceneStyle: { paddingTop: insets.top },
       }}
     >
-      <Tabs.Screen name="dashboard" options={{ title: "Dashboard" }} />
       <Tabs.Screen
-        name="index"
+        name="dashboard"
         options={{
-          title: "Home",
+          title: "Dashboard",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="house.fill" color={color} />
           ),
@@ -43,6 +45,9 @@ export default function TabLayout() {
         name="calendars"
         options={{
           title: "Calendriers",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="calendar" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -50,12 +55,18 @@ export default function TabLayout() {
         options={{
           title: "Notifications",
           tabBarBadge: unread > 0 ? unread : undefined,
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="bell.fill" color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="integrations"
         options={{
           title: "Intégrations",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="link" color={color} />
+          ),
         }}
       />
     </Tabs>

@@ -30,6 +30,7 @@ export type CalendarSummary = {
   name: string;
   color: string;
   theme: string;
+  coverImageUrl: string | null;
   isPremium: boolean;
   publicIcsEnabled: boolean;
   role: "owner" | "admin" | "editor" | "viewer" | "member";
@@ -166,6 +167,8 @@ export type GoogleImportPageResult = {
 export type DashboardUpcomingEvent = {
   id: string;
   calendarId: string;
+  calendarName: string;
+  theme: string;
   title: string;
   startDateTime: string;
   endDateTime: string;
@@ -179,6 +182,8 @@ export type DashboardCalendarActivity = {
 export type DashboardCalendarSummary = {
   id: string;
   name: string;
+  theme: string;
+  coverImageUrl: string | null;
   role: string;
   isPremium: boolean;
   publicIcsEnabled: boolean;

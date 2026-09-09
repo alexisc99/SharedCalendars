@@ -40,7 +40,14 @@
         }
       ],
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Autorise l'accès à tes photos pour choisir une image de couverture de calendrier."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

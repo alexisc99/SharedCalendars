@@ -15,6 +15,8 @@ import type {
   GoogleImportableResponse,
   GoogleImportPageResult,
 } from "../../../src/lib/types";
+import { colorForTheme } from "../../../src/lib/theme";
+import { AuthImage } from "../../../components/auth-image";
 
 export default function GoogleImportScreen() {
   // calendars (target)
@@ -237,10 +239,11 @@ export default function GoogleImportScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8 }}
+            contentContainerStyle={{ gap: 14, paddingVertical: 4 }}
           >
             {calendars.map((c) => {
               const active = c.id === targetCalendarId;
+              const color = colorForTheme(c.theme);
               return (
                 <Pressable
                   key={c.id}
@@ -253,15 +256,41 @@ export default function GoogleImportScreen() {
                     setLastResult(null);
                     await loadFirst(c.id); // <-- charge immédiatement le bon calendarId
                   }}
-                  style={{
-                    paddingHorizontal: 12,
-                    paddingVertical: 10,
-                    borderRadius: 999,
-                    borderWidth: 1,
-                    opacity: active ? 1 : 0.6,
-                  }}
+                  style={{ alignItems: "center", width: 68 }}
                 >
-                  <Text>{c.name}</Text>
+                  <View
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderWidth: active ? 3 : 0,
+                      borderColor: color,
+                      overflow: "hidden",
+                      backgroundColor: c.coverImageUrl ? undefined : color,
+                      opacity: active ? 1 : 0.6,
+                    }}
+                  >
+                    {c.coverImageUrl ? (
+                      <AuthImage uri={c.coverImageUrl} style={{ width: "100%", height: "100%" }} />
+                    ) : (
+                      <Text style={{ color: "#fff", fontWeight: "700", fontSize: 20 }}>
+                        {c.name.charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      fontSize: 12,
+                      marginTop: 4,
+                      fontWeight: active ? "600" : "400",
+                      textAlign: "center",
+                    }}
+                  >
+                    {c.name}
+                  </Text>
                 </Pressable>
               );
             })}

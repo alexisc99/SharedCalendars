@@ -8,8 +8,12 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ApiError } from "../../../src/lib/api";
 import { useSession } from "../../../src/lib/session";
+import { colorForTheme } from "../../../src/lib/theme";
+import { CalendarColorBar } from "../../../components/calendar-color-bar";
+import { HomeHeaderButton } from "../../../components/home-header-button";
 
 type MemberRole = "owner" | "admin" | "editor" | "viewer" | "member";
 
@@ -32,7 +36,13 @@ export default function CalendarMembersScreen() {
   const params = useLocalSearchParams();
   const idRaw = params.id;
   const calendarId = Array.isArray(idRaw) ? idRaw[0] : idRaw;
+  const nameRaw = params.name;
+  const calendarName = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
+  const themeRaw = params.theme;
+  const calendarTheme = Array.isArray(themeRaw) ? themeRaw[0] : themeRaw;
+  const calendarColor = colorForTheme(calendarTheme);
 
+  const insets = useSafeAreaInsets();
   const { me } = useSession();
 
   const [items, setItems] = useState<MemberItem[]>([]);
@@ -139,7 +149,16 @@ export default function CalendarMembersScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: "Membres" }} />
+      <Stack.Screen
+        options={{
+          title: calendarName ? `${calendarName} · Membres` : "Membres",
+          headerShown: true,
+          headerTintColor: calendarColor || undefined,
+          headerRight: () => <HomeHeaderButton />,
+          contentStyle: { paddingBottom: insets.bottom },
+        }}
+      />
+      <CalendarColorBar color={calendarColor} />
 
       {loading ? (
         <View

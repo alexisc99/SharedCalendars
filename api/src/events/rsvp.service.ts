@@ -2,6 +2,7 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RsvpDto } from './dto/rsvp.dto';
@@ -35,6 +36,11 @@ export class RsvpService {
     // viewer = lecture seule
     if (membership.role === 'viewer')
       throw new ForbiddenException('You cannot RSVP to this event');
+
+    // Événement déjà passé → RSVP figé
+    if (event.endDateTime.getTime() < Date.now()) {
+      throw new BadRequestException('Cannot RSVP to a past event');
+    }
 
     // Mettre à jour ou créer l'RSVP
     return this.prisma.eventRsvp.upsert({

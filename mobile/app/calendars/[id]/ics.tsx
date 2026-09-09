@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ApiError } from "../../../src/lib/api";
 import { API_BASE_URL } from "@/src/config/env";
+import { colorForTheme } from "../../../src/lib/theme";
+import { CalendarColorBar } from "../../../components/calendar-color-bar";
+import { HomeHeaderButton } from "../../../components/home-header-button";
 
 function buildIcsUrl(token: string): string {
   return `${API_BASE_URL}/public/calendars/${token}/ics`;
@@ -32,9 +36,13 @@ export default function CalendarIcsScreen() {
   const idRaw = params.id;
   const calendarId = Array.isArray(idRaw) ? idRaw[0] : idRaw;
 
+  const insets = useSafeAreaInsets();
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [calendarName, setCalendarName] = useState<string | null>(null);
+  const [calendarColor, setCalendarColor] = useState<string | null>(null);
   const [enabled, setEnabled] = useState<boolean>(false);
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
 
@@ -48,6 +56,8 @@ export default function CalendarIcsScreen() {
       // On s'appuie sur /home pour connaître enabled
       const res = await api.get<any>(`/calendars/${calendarId}/home`);
       setEnabled(!!res?.calendar?.publicIcsEnabled);
+      setCalendarName(res?.calendar?.name ?? null);
+      setCalendarColor(colorForTheme(res?.calendar?.theme ?? null));
     } catch (e: any) {
       if (e instanceof ApiError) setError(e.message);
       else setError("Erreur inconnue");
@@ -127,36 +137,66 @@ export default function CalendarIcsScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
+      <View style={{ flex: 1 }}>
+        <Stack.Screen
+          options={{
+            title: "ICS public",
+            headerShown: true,
+            headerRight: () => <HomeHeaderButton />,
+          }}
+        />
+        <CalendarColorBar color={calendarColor ?? colorForTheme(null)} />
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <ActivityIndicator />
+        </View>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={{ flex: 1, padding: 16, gap: 12 }}>
-        <Stack.Screen options={{ title: "ICS public" }} />
-        <Text style={{ color: "red" }}>{error}</Text>
-        <Pressable
-          onPress={loadState}
-          style={{
-            padding: 12,
-            borderRadius: 10,
-            alignItems: "center",
-            borderWidth: 1,
+      <View style={{ flex: 1 }}>
+        <Stack.Screen
+          options={{
+            title: "ICS public",
+            headerShown: true,
+            headerRight: () => <HomeHeaderButton />,
+            contentStyle: { paddingBottom: insets.bottom },
           }}
-        >
-          <Text>Réessayer</Text>
-        </Pressable>
+        />
+        <CalendarColorBar color={calendarColor ?? colorForTheme(null)} />
+        <View style={{ padding: 16, gap: 12 }}>
+          <Text style={{ color: "red" }}>{error}</Text>
+          <Pressable
+            onPress={loadState}
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              alignItems: "center",
+              borderWidth: 1,
+            }}
+          >
+            <Text>Réessayer</Text>
+          </Pressable>
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <Stack.Screen options={{ title: "ICS public" }} />
+    <View style={{ flex: 1 }}>
+      <Stack.Screen
+        options={{
+          title: calendarName ? `${calendarName} · ICS public` : "ICS public",
+          headerShown: true,
+          headerTintColor: calendarColor || undefined,
+          headerRight: () => <HomeHeaderButton />,
+          contentStyle: { paddingBottom: insets.bottom },
+        }}
+      />
+      <CalendarColorBar color={calendarColor ?? colorForTheme(null)} />
 
+      <View style={{ padding: 16, gap: 12 }}>
       <Text style={{ fontSize: 16, fontWeight: "600" }}>Lien ICS public</Text>
       <Text>Statut: {statusLabel}</Text>
 
@@ -222,6 +262,7 @@ export default function CalendarIcsScreen() {
           </Pressable>
         </>
       )}
+      </View>
     </View>
   );
 }

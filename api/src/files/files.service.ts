@@ -14,6 +14,9 @@ const MAX_PREMIUM_STORAGE = 500 * 1024 * 1024; // 500 MB
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
   'image/png',
+  'image/heic',
+  'image/heif',
+  'image/webp',
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -37,6 +40,7 @@ export class FilesService {
     file,
     calendarId,
     eventId,
+    purpose,
   }: {
     userId: string;
     file: {
@@ -47,6 +51,10 @@ export class FilesService {
     };
     calendarId?: string;
     eventId?: string;
+    /** Ex: "cover" — un changement d'apparence, pas un contenu partagé avec
+     * le calendrier. Journalisé différemment pour ne pas gonfler la stat
+     * d'activité "fichiers" à chaque nouvelle photo de couverture essayée. */
+    purpose?: string;
   }) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -111,7 +119,10 @@ export class FilesService {
         });
         this.auditService.log({
           userId,
-          action: 'FILE_UPLOAD',
+          // Une image de couverture n'est pas un contenu partagé avec le
+          // calendrier (comme une pièce jointe) — action différente pour ne
+          // pas compter dans les stats d'activité "fichiers".
+          action: purpose === 'cover' ? 'COVER_IMAGE_UPLOAD' : 'FILE_UPLOAD',
           entity: 'File',
           entityId: createdFile.id,
           metadata: {
@@ -189,5 +200,34 @@ export class FilesService {
     return {
       success: true,
     };
+  }
+
+  /**
+   * Suppression "système" d'un fichier (ex: ancienne image de couverture
+   * remplacée par une nouvelle) — sans le contrôle de propriété de
+   * deleteFile(), car l'appelant a déjà vérifié le droit d'agir sur la
+   * ressource parente (le calendrier). Best-effort : ne lève jamais.
+   */
+  async deleteFileInternal(fileId: string, actingUserId: string) {
+    try {
+      const file = await this.prisma.file.findUnique({ where: { id: fileId } });
+      if (!file) return;
+
+      if (fs.existsSync(file.storagePath)) {
+        fs.unlinkSync(file.storagePath);
+      }
+
+      await this.prisma.file.delete({ where: { id: fileId } });
+
+      this.auditService.log({
+        userId: actingUserId,
+        action: 'FILE_DELETE',
+        entity: 'File',
+        entityId: file.id,
+        metadata: { calendarId: file.calendarId, reason: 'cover_image_replaced' },
+      });
+    } catch (err) {
+      console.error('[deleteFileInternal] cleanup failed', fileId, err);
+    }
   }
 }

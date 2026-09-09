@@ -6,6 +6,7 @@ export class CalendarHomeDto {
     name: string;
     color?: string | null;
     theme?: string | null;
+    coverImageUrl?: string | null;
     isPremium: boolean;
     publicIcsEnabled: boolean;
     role: MemberRole;

@@ -6,6 +6,7 @@ export type AuditAction =
   | 'EVENT_DELETE'
   | 'FILE_UPLOAD'
   | 'FILE_DELETE'
+  | 'COVER_IMAGE_UPLOAD'
   | 'COMMENT_CREATE'
   | 'COMMENT_DELETE'
   | 'RSVP_UPDATE'

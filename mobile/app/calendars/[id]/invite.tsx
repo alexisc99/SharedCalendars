@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, Share, ActivityIndicator } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ApiError } from "../../../src/lib/api";
+import { colorForTheme } from "../../../src/lib/theme";
+import { CalendarColorBar } from "../../../components/calendar-color-bar";
+import { HomeHeaderButton } from "../../../components/home-header-button";
 
 type InvitationResponse = {
   success: boolean;
@@ -13,6 +17,13 @@ export default function InviteScreen() {
   const params = useLocalSearchParams();
   const idRaw = params.id;
   const id = Array.isArray(idRaw) ? idRaw[0] : idRaw;
+  const nameRaw = params.name;
+  const calendarName = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
+  const themeRaw = params.theme;
+  const calendarTheme = Array.isArray(themeRaw) ? themeRaw[0] : themeRaw;
+  const calendarColor = colorForTheme(calendarTheme);
+
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +56,19 @@ export default function InviteScreen() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <Stack.Screen options={{ title: "Inviter" }} />
+    <View style={{ flex: 1 }}>
+      <Stack.Screen
+        options={{
+          title: calendarName ? `${calendarName} · Inviter` : "Inviter",
+          headerShown: true,
+          headerTintColor: calendarColor || undefined,
+          headerRight: () => <HomeHeaderButton />,
+          contentStyle: { paddingBottom: insets.bottom },
+        }}
+      />
+      <CalendarColorBar color={calendarColor} />
 
+      <View style={{ flex: 1, padding: 16, gap: 12 }}>
       <Text style={{ opacity: 0.7 }}>
         Génère un lien d'invitation. Le destinataire le saisira dans « Rejoindre via lien ».
       </Text>
@@ -91,6 +112,7 @@ export default function InviteScreen() {
       )}
 
       {error ? <Text style={{ color: "red" }}>{error}</Text> : null}
+      </View>
     </View>
   );
 }

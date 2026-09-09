@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
+  Post,
   Param,
   UseGuards,
   Put,
@@ -12,6 +14,7 @@ import { NotificationsService } from './notifications.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { User } from '../auth/decorators/user.decorator';
 import { UpdateNotificationPreferencesDto } from './dto/update-notification-preferences.dto';
+import { BulkDeleteNotificationsDto } from './dto/bulk-delete-notifications.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { NotificationsListQueryDto } from './dto/notifications-list-query.dto';
 
@@ -38,6 +41,21 @@ export class NotificationsController {
   @Patch(':id/read')
   markAsRead(@User('sub') userId: string, @Param('id') id: string) {
     return this.notificationsService.markAsRead(userId, id);
+  }
+
+  @Patch(':id/unread')
+  markAsUnread(@User('sub') userId: string, @Param('id') id: string) {
+    return this.notificationsService.markAsUnread(userId, id);
+  }
+
+  @Delete(':id')
+  remove(@User('sub') userId: string, @Param('id') id: string) {
+    return this.notificationsService.remove(userId, id);
+  }
+
+  @Post('bulk-delete')
+  removeMany(@User('sub') userId: string, @Body() dto: BulkDeleteNotificationsDto) {
+    return this.notificationsService.removeMany(userId, dto.ids);
   }
 
   @UseGuards(AuthGuard)

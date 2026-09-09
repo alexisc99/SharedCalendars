@@ -14,6 +14,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { CreateCalendarDto } from './dto/create-calendar.dto';
 import { UpdateCalendarDto } from './dto/update-calendar.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { SetMyThemeDto } from './dto/set-my-theme.dto';
 import { User } from '../auth/decorators/user.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -116,6 +117,20 @@ export class CalendarsController {
   @Delete(':id')
   async remove(@User('sub') userId: string, @Param('id') id: string) {
     return this.calendarsService.remove(userId, id);
+  }
+
+  @Patch(':id/my-theme')
+  async setMyTheme(
+    @User('sub') userId: string,
+    @Param('id') id: string,
+    @Body() dto: SetMyThemeDto,
+  ) {
+    const result = await this.calendarsService.setMyTheme(
+      userId,
+      id,
+      dto.theme,
+    );
+    return { success: true, data: result };
   }
 
   @Get(':id/members')

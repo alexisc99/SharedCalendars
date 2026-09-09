@@ -50,7 +50,7 @@ export class NotificationsService {
     const uniqueIds = [...new Set(userIds)];
     if (!uniqueIds.length) return;
 
-    const authorizedIds: string[] = new Array(uniqueIds.length);
+    const authorizedIds: string[] = [];
     for (const i of uniqueIds) {
       const allowed = await this.isNotificationEnabled(i, payload.type);
       if (allowed) authorizedIds.push(i);
@@ -129,6 +129,44 @@ export class NotificationsService {
     });
 
     return { success: true };
+  }
+
+  async markAsUnread(userId: string, notificationId: string) {
+    const notif = await this.prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notif || notif.userId !== userId) {
+      return { success: false };
+    }
+
+    await this.prisma.notification.update({
+      where: { id: notificationId },
+      data: { readAt: null },
+    });
+
+    return { success: true };
+  }
+
+  async remove(userId: string, notificationId: string) {
+    const notif = await this.prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notif || notif.userId !== userId) {
+      return { success: false };
+    }
+
+    await this.prisma.notification.delete({ where: { id: notificationId } });
+
+    return { success: true };
+  }
+
+  async removeMany(userId: string, notificationIds: string[]) {
+    const result = await this.prisma.notification.deleteMany({
+      where: { id: { in: notificationIds }, userId },
+    });
+    return { success: true, deleted: result.count };
   }
 
   async getUserPreferences(userId: string) {

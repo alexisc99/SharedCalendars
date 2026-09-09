@@ -9,8 +9,12 @@ import {
   Alert,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GoogleLogo } from "../../components/google-logo";
 import { api, ApiError } from "../../src/lib/api";
 import type { EventDetail, CommentItem } from "../../src/lib/types";
+import { formatDateTime, formatEventRange } from "../../src/lib/date";
+import { HomeHeaderButton } from "../../components/home-header-button";
 
 export default function EventDetailScreen() {
   const params = useLocalSearchParams();
@@ -18,6 +22,7 @@ export default function EventDetailScreen() {
   const id = Array.isArray(idRaw) ? idRaw[0] : idRaw;
 
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -166,9 +171,18 @@ export default function EventDetailScreen() {
     loadComments();
   }, [id]);
 
+  const isPast = data ? new Date(data.endDateTime).getTime() < Date.now() : false;
+
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: data?.title ?? "Événement" }} />
+      <Stack.Screen
+        options={{
+          title: data?.title ?? "Événement",
+          headerShown: true,
+          headerRight: () => <HomeHeaderButton />,
+          contentStyle: { paddingBottom: insets.bottom },
+        }}
+      />
 
       {loading ? (
         <View
@@ -196,7 +210,7 @@ export default function EventDetailScreen() {
           <Text>Événement introuvable</Text>
         </View>
       ) : (
-        <ScrollView style={{ padding: 16, gap: 10, paddingBottom: 80 }}>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 80 }}>
           <Text style={{ fontSize: 18, fontWeight: "600" }}>{data.title}</Text>
           <Pressable
             onPress={() =>
@@ -212,9 +226,7 @@ export default function EventDetailScreen() {
             <Text>Modifier</Text>
           </Pressable>
 
-          <Text>
-            {data.startDateTime} → {data.endDateTime}
-          </Text>
+          <Text>{formatEventRange(data.startDateTime, data.endDateTime)}</Text>
 
           <Text>Créé par: {data.createdBy.name}</Text>
           <Text>Status: {data.status}</Text>
@@ -229,52 +241,58 @@ export default function EventDetailScreen() {
             {data.rsvp.counts.NO}
           </Text>
 
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-            <Pressable
-              onPress={() => setRsvp("YES")}
-              disabled={rsvpLoading}
-              style={{
-                flex: 1,
-                padding: 10,
-                borderRadius: 10,
-                alignItems: "center",
-                borderWidth: 1,
-                opacity: rsvpLoading ? 0.6 : 1,
-              }}
-            >
-              <Text>YES</Text>
-            </Pressable>
+          {isPast ? (
+            <Text style={{ opacity: 0.6, fontStyle: "italic" }}>
+              Événement terminé — RSVP verrouillé
+            </Text>
+          ) : (
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+              <Pressable
+                onPress={() => setRsvp("YES")}
+                disabled={rsvpLoading}
+                style={{
+                  flex: 1,
+                  padding: 10,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  opacity: rsvpLoading ? 0.6 : 1,
+                }}
+              >
+                <Text>YES</Text>
+              </Pressable>
 
-            <Pressable
-              onPress={() => setRsvp("MAYBE")}
-              disabled={rsvpLoading}
-              style={{
-                flex: 1,
-                padding: 10,
-                borderRadius: 10,
-                alignItems: "center",
-                borderWidth: 1,
-                opacity: rsvpLoading ? 0.6 : 1,
-              }}
-            >
-              <Text>MAYBE</Text>
-            </Pressable>
+              <Pressable
+                onPress={() => setRsvp("MAYBE")}
+                disabled={rsvpLoading}
+                style={{
+                  flex: 1,
+                  padding: 10,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  opacity: rsvpLoading ? 0.6 : 1,
+                }}
+              >
+                <Text>MAYBE</Text>
+              </Pressable>
 
-            <Pressable
-              onPress={() => setRsvp("NO")}
-              disabled={rsvpLoading}
-              style={{
-                flex: 1,
-                padding: 10,
-                borderRadius: 10,
-                alignItems: "center",
-                borderWidth: 1,
-                opacity: rsvpLoading ? 0.6 : 1,
-              }}
-            >
-              <Text>NO</Text>
-            </Pressable>
-          </View>
+              <Pressable
+                onPress={() => setRsvp("NO")}
+                disabled={rsvpLoading}
+                style={{
+                  flex: 1,
+                  padding: 10,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  borderWidth: 1,
+                  opacity: rsvpLoading ? 0.6 : 1,
+                }}
+              >
+                <Text>NO</Text>
+              </Pressable>
+            </View>
+          )}
 
           <Text style={{ marginTop: 8, fontWeight: "600" }}>Interactions</Text>
           <Text>Commentaires: {data.comments.total}</Text>
@@ -314,7 +332,7 @@ export default function EventDetailScreen() {
                     </Text>
                     <Text>{c.text}</Text>
                     <Text style={{ opacity: 0.7, marginTop: 4 }}>
-                      {c.createdAt}
+                      {formatDateTime(c.createdAt)}
                     </Text>
                   </View>
                 ))
@@ -346,20 +364,26 @@ export default function EventDetailScreen() {
             </Pressable>
           </View>
 
-          <Text style={{ marginTop: 8, fontWeight: "600" }}>Google</Text>
           <View style={{ marginTop: 20, gap: 8 }}>
-            <Text style={{ fontWeight: "600" }}>Google</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <GoogleLogo size={18} />
+              <Text style={{ fontWeight: "600" }}>Google</Text>
+            </View>
 
             {!data.google.synced ? (
               <Pressable
                 onPress={exportToGoogle}
                 style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
                   padding: 12,
                   borderRadius: 10,
-                  alignItems: "center",
                   borderWidth: 1,
                 }}
               >
+                <GoogleLogo size={16} />
                 <Text>Exporter vers Google</Text>
               </Pressable>
             ) : (
@@ -371,12 +395,16 @@ export default function EventDetailScreen() {
                 <Pressable
                   onPress={updateGoogle}
                   style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
                     padding: 12,
                     borderRadius: 10,
-                    alignItems: "center",
                     borderWidth: 1,
                   }}
                 >
+                  <GoogleLogo size={16} />
                   <Text>Mettre à jour Google</Text>
                 </Pressable>
 

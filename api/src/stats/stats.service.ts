@@ -229,11 +229,10 @@ export class StatsService {
     let files = 0;
 
     for (const l of logs) {
-      // Ajuste ces strings si vos actions diffèrent
-      if (l.action === 'EVENT_CREATED') eventsCreated += 1;
-      if (l.action === 'EVENT_PUBLISHED') eventsPublished += 1;
-      if (l.action === 'COMMENT_ADDED') comments += 1;
-      if (l.action === 'FILE_UPLOADED') files += 1;
+      if (l.action === 'EVENT_CREATE') eventsCreated += 1;
+      if (l.action === 'EVENT_PUBLISH') eventsPublished += 1;
+      if (l.action === 'COMMENT_CREATE') comments += 1;
+      if (l.action === 'FILE_UPLOAD') files += 1;
     }
 
     return { eventsCreated, eventsPublished, comments, files };
@@ -250,10 +249,13 @@ export class StatsService {
       where: { userId },
       select: {
         role: true,
+        theme: true,
         calendar: {
           select: {
             id: true,
             name: true,
+            theme: true,
+            coverImageUrl: true,
             isPremium: true,
             publicIcsEnabled: true,
             createdAt: true,
@@ -266,8 +268,18 @@ export class StatsService {
 
     const calendarIds = memberships.map((m) => m.calendar.id);
 
+    const calendarInfoById = new Map(
+      memberships.map((m) => [
+        m.calendar.id,
+        {
+          name: m.calendar.name,
+          theme: m.theme ?? m.calendar.theme ?? 'default',
+        },
+      ]),
+    );
+
     // 3) Upcoming events across all accessible calendars (PUBLISHED only)
-    const upcomingEvents = await this.prisma.event.findMany({
+    const upcomingEventsRaw = await this.prisma.event.findMany({
       where: {
         calendarId: { in: calendarIds },
         status: 'PUBLISHED',
@@ -284,6 +296,12 @@ export class StatsService {
       },
     });
 
+    const upcomingEvents = upcomingEventsRaw.map((e) => ({
+      ...e,
+      calendarName: calendarInfoById.get(e.calendarId)?.name ?? '',
+      theme: calendarInfoById.get(e.calendarId)?.theme ?? 'default',
+    }));
+
     // 4) Activity stats 7d / 30d per calendar (simple loop; optimize later if needed)
     const now = new Date();
     const since7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -299,6 +317,8 @@ export class StatsService {
       calendars.push({
         id: m.calendar.id,
         name: m.calendar.name,
+        theme: m.theme ?? m.calendar.theme ?? 'default',
+        coverImageUrl: m.calendar.coverImageUrl,
         role: m.role,
         isPremium: m.calendar.isPremium,
         publicIcsEnabled: m.calendar.publicIcsEnabled,

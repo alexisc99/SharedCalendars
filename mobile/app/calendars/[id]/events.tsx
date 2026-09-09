@@ -1,14 +1,22 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-} from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ApiError } from "../../../src/lib/api";
+import { MonthCalendar, MonthCalendarEvent } from "../../../components/month-calendar";
+import { UpcomingEventsPanel, UpcomingEventItem } from "../../../components/upcoming-events-panel";
+import {
+  endOfMonth,
+  formatDate,
+  formatEventRange,
+  isSameDay,
+  startOfMonth,
+} from "../../../src/lib/date";
 import type { CursorPage, EventListItem } from "../../../src/lib/types";
+import { colorForTheme } from "../../../src/lib/theme";
+import { CalendarColorBar } from "../../../components/calendar-color-bar";
+import { HomeHeaderButton } from "../../../components/home-header-button";
 
 export default function CalendarEventsScreen() {
   const router = useRouter();
@@ -16,72 +24,137 @@ export default function CalendarEventsScreen() {
   const params = useLocalSearchParams();
   const idRaw = params.id;
   const calendarId = Array.isArray(idRaw) ? idRaw[0] : idRaw;
+  const themeRaw = params.theme;
+  const calendarTheme = Array.isArray(themeRaw) ? themeRaw[0] : themeRaw;
+  const calendarColor = colorForTheme(calendarTheme);
+  const nameRaw = params.name;
+  const calendarName = (Array.isArray(nameRaw) ? nameRaw[0] : nameRaw) || "Calendrier";
 
-  const [items, setItems] = useState<EventListItem[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
-  const [loadingFirst, setLoadingFirst] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [month, setMonth] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
 
-  async function loadFirstPage() {
+  const [monthItems, setMonthItems] = useState<EventListItem[]>([]);
+  const [monthError, setMonthError] = useState<string | null>(null);
+
+  const [upcoming, setUpcoming] = useState<EventListItem[]>([]);
+  const [upcomingLoading, setUpcomingLoading] = useState(true);
+
+  const loadMonth = useCallback(async () => {
     if (!calendarId) return;
-
-    setError(null);
-    setLoadingFirst(true);
-
+    setMonthError(null);
     try {
+      const from = startOfMonth(month).toISOString();
+      const to = endOfMonth(month).toISOString();
       const res = await api.get<CursorPage<EventListItem>>(
-        `/calendars/${calendarId}/events`,
+        `/calendars/${calendarId}/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&limit=200`,
       );
-      setItems(res.items);
-      setNextCursor(res.nextCursor);
+      setMonthItems(res.items);
     } catch (e: any) {
-      if (e instanceof ApiError) setError(e.message);
-      else setError("Erreur inconnue");
-    } finally {
-      setLoadingFirst(false);
+      if (e instanceof ApiError) setMonthError(e.message);
+      else setMonthError("Erreur inconnue");
     }
-  }
+  }, [calendarId, month]);
 
-  async function loadMore() {
+  const loadUpcoming = useCallback(async () => {
     if (!calendarId) return;
-    if (!nextCursor) return;
-    if (loadingMore) return;
-
-    setLoadingMore(true);
+    setUpcomingLoading(true);
     try {
+      const from = new Date().toISOString();
       const res = await api.get<CursorPage<EventListItem>>(
-        `/calendars/${calendarId}/events?cursor=${encodeURIComponent(nextCursor)}`,
+        `/calendars/${calendarId}/events?from=${encodeURIComponent(from)}&limit=20`,
       );
-      setItems((prev) => [...prev, ...res.items]);
-      setNextCursor(res.nextCursor);
-    } catch (e: any) {
-      // on évite de casser l'écran pour un loadMore
+      setUpcoming(res.items);
+    } catch {
+      // le panneau affichera juste une liste vide en cas d'erreur silencieuse
     } finally {
-      setLoadingMore(false);
+      setUpcomingLoading(false);
     }
-  }
-
-  useEffect(() => {
-    loadFirstPage();
   }, [calendarId]);
+
+  // Recharge à chaque fois que l'écran reprend le focus (ex: retour après
+  // avoir créé un événement), pas seulement au montage.
+  useFocusEffect(
+    useCallback(() => {
+      loadMonth();
+      loadUpcoming();
+    }, [loadMonth, loadUpcoming]),
+  );
+
+  const calendarEvents: MonthCalendarEvent[] = useMemo(
+    () =>
+      monthItems.map((e) => ({
+        id: e.id,
+        startDateTime: e.startDateTime,
+        color: calendarColor,
+      })),
+    [monthItems, calendarColor],
+  );
+
+  const dayEvents = useMemo(
+    () =>
+      monthItems.filter((e) => isSameDay(new Date(e.startDateTime), selectedDate)),
+    [monthItems, selectedDate],
+  );
+
+  const upcomingItems: UpcomingEventItem[] = useMemo(
+    () =>
+      upcoming.map((e) => ({
+        id: e.id,
+        title: e.title,
+        startDateTime: e.startDateTime,
+        endDateTime: e.endDateTime,
+        color: calendarColor,
+      })),
+    [upcoming, calendarColor],
+  );
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: "Événements" }} />
+      <Stack.Screen
+        options={{
+          title: calendarName,
+          headerShown: true,
+          headerTintColor: calendarColor,
+          headerRight: () => <HomeHeaderButton />,
+          contentStyle: { paddingBottom: insets.bottom },
+        }}
+      />
+      <CalendarColorBar color={calendarColor} />
 
-      {loadingFirst ? (
-        <View
-          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "flex-end",
+          marginBottom: 12,
+        }}
+      >
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: "/calendars/[id]/create-event",
+              params: { id: calendarId, name: calendarName, theme: calendarTheme ?? "" },
+            })
+          }
+          style={{
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: calendarColor,
+          }}
         >
-          <ActivityIndicator />
-        </View>
-      ) : error ? (
-        <View style={{ flex: 1, padding: 16, gap: 12 }}>
-          <Text style={{ color: "red" }}>{error}</Text>
+          <Text>Créer</Text>
+        </Pressable>
+      </View>
+
+      {monthError ? (
+        <View style={{ gap: 12, marginBottom: 16 }}>
+          <Text style={{ color: "red" }}>{monthError}</Text>
           <Pressable
-            onPress={loadFirstPage}
+            onPress={loadMonth}
             style={{
               padding: 12,
               borderRadius: 10,
@@ -93,77 +166,51 @@ export default function CalendarEventsScreen() {
           </Pressable>
         </View>
       ) : (
-        <View style={{ flex: 1, padding: 16 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginBottom: 12,
-            }}
-          >
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>Événements</Text>
-
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: "/calendars/[id]/create-event",
-                  params: { id: calendarId },
-                })
-              }
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                borderRadius: 10,
-                borderWidth: 1,
-              }}
-            >
-              <Text>Créer</Text>
-            </Pressable>
-          </View>
-
-          <FlatList
-            data={items}
-            keyExtractor={(e) => e.id}
-            ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/events/[id]",
-                    params: { id: item.id },
-                  })
-                }
-                style={{ padding: 12, borderRadius: 12, borderWidth: 1 }}
-              >
-                <Text style={{ fontSize: 16, fontWeight: "600" }}>
-                  {item.title}
-                </Text>
-                <Text>
-                  {item.startDateTime} → {item.endDateTime}
-                </Text>
-                <Text>
-                  Commentaires: {item.commentsCount} • Fichiers:{" "}
-                  {item.filesCount}
-                </Text>
-              </Pressable>
-            )}
-            onEndReached={() => {
-              // éviter un déclenchement trop agressif
-              if (nextCursor) loadMore();
-            }}
-            onEndReachedThreshold={0.6}
-            ListFooterComponent={
-              loadingMore ? (
-                <View style={{ paddingVertical: 16 }}>
-                  <ActivityIndicator />
-                </View>
-              ) : null
-            }
-            onRefresh={loadFirstPage}
-            refreshing={loadingFirst}
-          />
-        </View>
+        <MonthCalendar
+          month={month}
+          onMonthChange={setMonth}
+          events={calendarEvents}
+          selectedDate={selectedDate}
+          onSelectDate={setSelectedDate}
+          accentColor={calendarColor}
+        />
       )}
+
+      <View style={{ marginTop: 16, gap: 8 }}>
+        <Text style={{ fontWeight: "600" }}>{formatDate(selectedDate)}</Text>
+        {dayEvents.length === 0 ? (
+          <Text style={{ opacity: 0.6 }}>Aucun événement ce jour</Text>
+        ) : (
+          dayEvents.map((item) => (
+            <Pressable
+              key={item.id}
+              onPress={() =>
+                router.push({ pathname: "/events/[id]", params: { id: item.id } })
+              }
+              style={{ padding: 12, borderRadius: 12, borderWidth: 1 }}
+            >
+              <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.title}</Text>
+              <Text style={{ opacity: 0.7 }}>
+                {formatEventRange(item.startDateTime, item.endDateTime)}
+              </Text>
+              <Text>
+                Commentaires: {item.commentsCount} • Fichiers: {item.filesCount}
+              </Text>
+            </Pressable>
+          ))
+        )}
+      </View>
+
+      <View style={{ marginTop: 16 }}>
+        <UpcomingEventsPanel
+          items={upcomingItems}
+          loading={upcomingLoading}
+          onPressItem={(id) =>
+            router.push({ pathname: "/events/[id]", params: { id } })
+          }
+        />
+      </View>
+      </ScrollView>
     </View>
   );
 }

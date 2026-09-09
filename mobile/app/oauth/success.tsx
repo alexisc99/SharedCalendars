@@ -10,7 +10,7 @@ export default function OAuthSuccess() {
   useEffect(() => {
     (async () => {
       await refreshMe();           // googleConnected doit devenir true
-      router.replace("/(tabs)");   // retour app
+      router.replace("/(tabs)/dashboard");   // retour app
     })();
   }, []);
 

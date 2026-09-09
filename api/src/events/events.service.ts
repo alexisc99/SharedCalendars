@@ -73,7 +73,7 @@ export class EventsService {
       throw new ForbiddenException('You cannot create an event');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const event = await this.prisma.$transaction(async (tx) => {
       const event = await tx.event.create({
         data: {
           calendarId,
@@ -152,6 +152,18 @@ export class EventsService {
 
       return event;
     });
+
+    this.auditService.log({
+      userId,
+      action: 'EVENT_CREATE',
+      entity: 'Event',
+      entityId: event.id,
+      metadata: {
+        calendarId: event.calendarId,
+      },
+    });
+
+    return event;
   }
 
   private async getUserRoleInCalendar(userId: string, calendarId: string) {
@@ -247,7 +259,8 @@ export class EventsService {
       where: { userId },
       select: {
         calendarId: true,
-        calendar: { select: { id: true, name: true, color: true } },
+        theme: true,
+        calendar: { select: { id: true, name: true, color: true, theme: true } },
       },
     });
 
@@ -265,7 +278,14 @@ export class EventsService {
 
     const calendarIds = memberships.map((m) => m.calendarId);
     const calendarMap = new Map(
-      memberships.map((m) => [m.calendarId, m.calendar]),
+      memberships.map((m) => [
+        m.calendarId,
+        {
+          ...m.calendar,
+          // Thème personnel de l'utilisateur pour ce calendrier, sinon thème par défaut.
+          theme: m.theme ?? m.calendar.theme ?? 'default',
+        },
+      ]),
     );
 
     const limit = query.limit ?? 50;
@@ -733,6 +753,19 @@ export class EventsService {
       );
     }
     this.ensureModifyPermission(membership.role, userId, event);
+
+    const isPast = event.endDateTime.getTime() < Date.now();
+    const triesToChangeScheduleOrLocation =
+      dto.startDateTime !== undefined ||
+      dto.endDateTime !== undefined ||
+      dto.location !== undefined ||
+      dto.locationAddress !== undefined;
+
+    if (isPast && triesToChangeScheduleOrLocation) {
+      throw new BadRequestException(
+        'Cannot change the time or location of a past event',
+      );
+    }
 
     return this.prisma.event.update({
       where: { id: eventId },

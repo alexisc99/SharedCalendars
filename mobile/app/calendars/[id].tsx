@@ -1,7 +1,15 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, ActivityIndicator, Pressable } from "react-native";
+import React, { useCallback, useState } from "react";
+import { View, Text, ActivityIndicator, Pressable, ScrollView } from "react-native";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ApiError } from "../../src/lib/api";
+import { useSession } from "../../src/lib/session";
+import { formatEventRange } from "../../src/lib/date";
+import { FREE_THEMES, PREMIUM_THEMES, THEME_COLORS, colorForTheme } from "../../src/lib/theme";
+import { CalendarColorBar } from "../../components/calendar-color-bar";
+import { HomeHeaderButton } from "../../components/home-header-button";
+import { AuthImage } from "../../components/auth-image";
 
 type CalendarHomeResponse = {
   calendar: {
@@ -9,6 +17,7 @@ type CalendarHomeResponse = {
     name: string;
     color: string;
     theme: string;
+    coverImageUrl: string | null;
     isPremium: boolean;
     publicIcsEnabled: boolean;
     role: string;
@@ -44,19 +53,22 @@ export default function CalendarHomeScreen() {
   // Expo Router peut donner string | string[]
   const id = Array.isArray(idRaw) ? idRaw[0] : idRaw;
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { me } = useSession();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<CalendarHomeResponse | null>(null);
+  const [savingTheme, setSavingTheme] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!id) {
       setError("ID calendrier manquant");
       setLoading(false);
       return;
     }
 
-    setLoading(true);
     setError(null);
 
     try {
@@ -68,15 +80,51 @@ export default function CalendarHomeScreen() {
     } finally {
       setLoading(false);
     }
+  }, [id]);
+
+  // Recharge à chaque fois que l'écran reprend le focus (ex: retour après
+  // avoir modifié l'image de couverture), pas seulement au montage.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  async function chooseMyTheme(t: string) {
+    if (!id) return;
+    setThemeError(null);
+    setSavingTheme(true);
+    try {
+      await api.patch(`/calendars/${id}/my-theme`, { theme: t });
+      await load();
+    } catch (e: any) {
+      setThemeError(e instanceof ApiError ? e.message : "Erreur inconnue");
+    } finally {
+      setSavingTheme(false);
+    }
   }
 
-  useEffect(() => {
-    load();
-  }, [id]);
+  const name = data?.calendar.name;
+  const theme = data?.calendar.theme;
+  const color = colorForTheme(theme);
+  const subParams = { id, name: name ?? "", theme: theme ?? "" };
+  const hasPremium = !!data?.calendar.isPremium || !!me?.user.isPremium;
+  const availableThemes = hasPremium
+    ? [...FREE_THEMES, ...PREMIUM_THEMES]
+    : FREE_THEMES;
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: data?.calendar?.name ?? "Calendrier" }} />
+      <Stack.Screen
+        options={{
+          title: name ?? "Calendrier",
+          headerShown: true,
+          headerTintColor: color || undefined,
+          headerRight: () => <HomeHeaderButton />,
+          contentStyle: { paddingBottom: insets.bottom },
+        }}
+      />
+      <CalendarColorBar color={color} />
 
       {loading ? (
         <View
@@ -100,30 +148,94 @@ export default function CalendarHomeScreen() {
           </Pressable>
         </View>
       ) : (
-        <View style={{ padding: 16, gap: 10 }}>
-          <Text style={{ fontSize: 18, fontWeight: "600" }}>
-            {data?.calendar.name}
-          </Text>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 40 }}>
+          {data?.calendar.coverImageUrl ? (
+            <AuthImage
+              uri={data.calendar.coverImageUrl}
+              style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 14, marginBottom: 4 }}
+            />
+          ) : null}
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 6,
+                backgroundColor: color || "#4f46e5",
+              }}
+            />
+            <Text style={{ fontSize: 18, fontWeight: "600" }}>{name}</Text>
+          </View>
           <Text>Rôle: {data?.calendar.role}</Text>
           <Text>Membres: {data?.members.total}</Text>
           <Text>Premium: {data?.calendar.isPremium ? "Oui" : "Non"}</Text>
 
           <Text style={{ marginTop: 8, fontWeight: "600" }}>
+            Ma couleur pour ce calendrier
+          </Text>
+          <Text style={{ opacity: 0.6, fontSize: 12 }}>
+            Personnel — les autres membres peuvent choisir une couleur différente.
+          </Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+            {availableThemes.map((t) => (
+              <Pressable
+                key={t}
+                onPress={() => chooseMyTheme(t)}
+                disabled={savingTheme}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  paddingHorizontal: 10,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  borderWidth: theme === t ? 2 : 1,
+                  opacity: savingTheme ? 0.6 : 1,
+                }}
+              >
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: THEME_COLORS[t],
+                  }}
+                />
+                <Text>
+                  {t}
+                  {(PREMIUM_THEMES as readonly string[]).includes(t) ? " ✨" : ""}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          {!hasPremium ? (
+            <Text style={{ opacity: 0.6, fontSize: 12 }}>
+              Plus de couleurs disponibles en passant toi-même ou ce calendrier en premium ✨
+            </Text>
+          ) : null}
+          {themeError ? <Text style={{ color: "red" }}>{themeError}</Text> : null}
+
+          <Text style={{ marginTop: 8, fontWeight: "600" }}>
             Prochains événements
           </Text>
-          {(data?.upcomingEvents ?? []).map((ev) => (
-            <View key={ev.id} style={{ paddingVertical: 6 }}>
-              <Text style={{ fontWeight: "500" }}>{ev.title}</Text>
-              <Text>
-                {ev.startDateTime} → {ev.endDateTime}
-              </Text>
-            </View>
-          ))}
+          {(data?.upcomingEvents ?? []).length === 0 ? (
+            <Text style={{ opacity: 0.6 }}>Aucun événement à venir</Text>
+          ) : (
+            (data?.upcomingEvents ?? []).map((ev) => (
+              <View key={ev.id} style={{ paddingVertical: 6 }}>
+                <Text style={{ fontWeight: "500" }}>{ev.title}</Text>
+                <Text style={{ opacity: 0.7 }}>
+                  {formatEventRange(ev.startDateTime, ev.endDateTime)}
+                </Text>
+              </View>
+            ))
+          )}
           <Pressable
             onPress={() =>
               router.push({
                 pathname: "/calendars/[id]/events",
-                params: { id },
+                params: subParams,
               })
             }
             style={{
@@ -131,6 +243,7 @@ export default function CalendarHomeScreen() {
               borderRadius: 10,
               alignItems: "center",
               borderWidth: 1,
+              borderColor: color || undefined,
               marginTop: 8,
             }}
           >
@@ -138,7 +251,10 @@ export default function CalendarHomeScreen() {
           </Pressable>
           <Pressable
             onPress={() =>
-              router.push({ pathname: "/calendars/[id]/ics", params: { id } })
+              router.push({
+                pathname: "/calendars/[id]/ics",
+                params: subParams,
+              })
             }
             style={{
               padding: 12,
@@ -154,7 +270,10 @@ export default function CalendarHomeScreen() {
           {data?.permissions.canInvite ? (
             <Pressable
               onPress={() =>
-                router.push({ pathname: "/calendars/[id]/invite", params: { id } })
+                router.push({
+                  pathname: "/calendars/[id]/invite",
+                  params: subParams,
+                })
               }
               style={{
                 padding: 12,
@@ -170,7 +289,10 @@ export default function CalendarHomeScreen() {
 
           <Pressable
             onPress={() =>
-              router.push({ pathname: "/calendars/[id]/members", params: { id } })
+              router.push({
+                pathname: "/calendars/[id]/members",
+                params: subParams,
+              })
             }
             style={{
               padding: 12,
@@ -186,7 +308,10 @@ export default function CalendarHomeScreen() {
           {data?.permissions.canEdit ? (
             <Pressable
               onPress={() =>
-                router.push({ pathname: "/calendars/[id]/edit", params: { id } })
+                router.push({
+                  pathname: "/calendars/[id]/edit",
+                  params: subParams,
+                })
               }
               style={{
                 padding: 12,
@@ -199,7 +324,7 @@ export default function CalendarHomeScreen() {
               <Text>Modifier le calendrier</Text>
             </Pressable>
           ) : null}
-        </View>
+        </ScrollView>
       )}
     </View>
   );

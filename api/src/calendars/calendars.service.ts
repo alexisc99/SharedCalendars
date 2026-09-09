@@ -4,16 +4,22 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import * as fs from 'fs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCalendarDto } from './dto/create-calendar.dto';
 import { UpdateCalendarDto } from './dto/update-calendar.dto';
 import { MemberRole } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { CalendarHomeDto } from './dto/calendar-home.dto';
+import { FREE_THEMES, PREMIUM_THEMES } from './theme.constants';
+import { FilesService } from '../files/files.service';
 
 @Injectable()
 export class CalendarsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private filesService: FilesService,
+  ) {}
 
   async create(userId: string, dto: CreateCalendarDto) {
     const user = await this.prisma.user.findUnique({
@@ -37,9 +43,6 @@ export class CalendarsService {
     }
 
     // 2) Themes premium
-    const PREMIUM_THEMES = ['gold', 'night-sky', 'gradient-purple'];
-    const FREE_THEMES = ['default', 'blue', 'green', 'red'];
-
     if (dto.theme) {
       const isPremiumTheme = PREMIUM_THEMES.includes(dto.theme);
       if (isPremiumTheme && !isPremium) {
@@ -94,12 +97,14 @@ export class CalendarsService {
       where: { userId },
       select: {
         role: true,
+        theme: true,
         calendar: {
           select: {
             id: true,
             name: true,
             color: true,
             theme: true,
+            coverImageUrl: true,
             isPremium: true,
             publicIcsEnabled: true,
             createdAt: true,
@@ -119,7 +124,8 @@ export class CalendarsService {
       id: m.calendar.id,
       name: m.calendar.name,
       color: m.calendar.color,
-      theme: m.calendar.theme,
+      theme: m.theme ?? m.calendar.theme ?? 'default',
+      coverImageUrl: m.calendar.coverImageUrl,
       isPremium: m.calendar.isPremium,
       publicIcsEnabled: m.calendar.publicIcsEnabled,
       role: m.role,
@@ -153,7 +159,7 @@ export class CalendarsService {
   ): Promise<CalendarHomeDto> {
     const membership = await this.prisma.calendarMember.findFirst({
       where: { userId, calendarId },
-      select: { role: true },
+      select: { role: true, theme: true },
     });
     if (!membership) throw new ForbiddenException('No access to this calendar');
 
@@ -164,6 +170,7 @@ export class CalendarsService {
         name: true,
         color: true,
         theme: true,
+        coverImageUrl: true,
         isPremium: true,
         premiumSeats: true,
         publicIcsEnabled: true,
@@ -210,8 +217,8 @@ export class CalendarsService {
       const f = logs.filter((l) => l.createdAt >= since);
       return {
         events: f.filter((l) => l.action.startsWith('EVENT')).length,
-        comments: f.filter((l) => l.action === 'COMMENT_ADDED').length,
-        files: f.filter((l) => l.action === 'FILE_UPLOADED').length,
+        comments: f.filter((l) => l.action === 'COMMENT_CREATE').length,
+        files: f.filter((l) => l.action === 'FILE_UPLOAD').length,
       };
     };
 
@@ -226,7 +233,8 @@ export class CalendarsService {
         id: calendar.id,
         name: calendar.name,
         color: calendar.color,
-        theme: calendar.theme,
+        theme: membership.theme ?? calendar.theme ?? 'default',
+        coverImageUrl: calendar.coverImageUrl,
         isPremium: calendar.isPremium,
         publicIcsEnabled: calendar.publicIcsEnabled,
         role: membership.role,
@@ -326,12 +334,9 @@ export class CalendarsService {
 
     const calendar = await this.prisma.calendar.findUnique({
       where: { id: calendarId },
-      select: { isPremium: true },
+      select: { isPremium: true, coverImageUrl: true },
     });
     if (!calendar) throw new NotFoundException('Calendar not found');
-
-    const PREMIUM_THEMES = ['gold', 'night-sky', 'gradient-purple'];
-    const FREE_THEMES = ['default', 'blue', 'green', 'red'];
 
     if (dto.theme !== undefined) {
       const isPremiumTheme = PREMIUM_THEMES.includes(dto.theme);
@@ -347,7 +352,9 @@ export class CalendarsService {
       throw new ForbiddenException('Cover images require a premium calendar');
     }
 
-    return this.prisma.calendar.update({
+    const previousCoverImageUrl = calendar.coverImageUrl;
+
+    const updated = await this.prisma.calendar.update({
       where: { id: calendarId },
       data: {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
@@ -358,6 +365,56 @@ export class CalendarsService {
           : {}),
       },
     });
+
+    // Nettoyage de l'ancienne image de couverture si elle a été remplacée
+    // ou retirée : sinon elle reste orpheline sur le disque pour toujours
+    // (fuite de stockage, et ça grignote le quota premium de l'uploadeur
+    // original sans raison).
+    if (
+      dto.coverImageUrl !== undefined &&
+      previousCoverImageUrl &&
+      previousCoverImageUrl !== dto.coverImageUrl &&
+      previousCoverImageUrl.startsWith('/files/')
+    ) {
+      const oldFileId = previousCoverImageUrl.slice('/files/'.length);
+      await this.filesService.deleteFileInternal(oldFileId, userId);
+    }
+
+    return updated;
+  }
+
+  // Thème personnel : chaque membre choisit sa propre couleur d'affichage
+  // pour ce calendrier, indépendamment des autres membres.
+  async setMyTheme(userId: string, calendarId: string, theme: string) {
+    const membership = await this.prisma.calendarMember.findFirst({
+      where: { userId, calendarId },
+      include: { user: { select: { isPremium: true } } },
+    });
+    if (!membership) throw new ForbiddenException('No access to this calendar');
+
+    const calendar = await this.prisma.calendar.findUnique({
+      where: { id: calendarId },
+      select: { isPremium: true },
+    });
+    if (!calendar) throw new NotFoundException('Calendar not found');
+
+    const hasPremium = membership.user.isPremium || calendar.isPremium;
+    const isPremiumTheme = PREMIUM_THEMES.includes(theme);
+    if (isPremiumTheme && !hasPremium) {
+      throw new ForbiddenException(
+        'This theme requires a premium calendar or account',
+      );
+    }
+    if (!isPremiumTheme && !FREE_THEMES.includes(theme)) {
+      throw new ForbiddenException('Unknown theme');
+    }
+
+    await this.prisma.calendarMember.update({
+      where: { calendarId_userId: { calendarId, userId } },
+      data: { theme },
+    });
+
+    return { theme };
   }
 
   async remove(userId: string, calendarId: string) {
@@ -377,6 +434,13 @@ export class CalendarsService {
     });
     const eventIds = events.map((e) => e.id);
 
+    // Chemins disque à nettoyer une fois les lignes supprimées en base
+    // (deleteMany ne touche pas au disque).
+    const filesToUnlink = await this.prisma.file.findMany({
+      where: { OR: [{ calendarId }, { eventId: { in: eventIds } }] },
+      select: { storagePath: true },
+    });
+
     await this.prisma.$transaction([
       this.prisma.notification.deleteMany({
         where: { eventId: { in: eventIds } },
@@ -395,6 +459,14 @@ export class CalendarsService {
       }),
       this.prisma.calendar.delete({ where: { id: calendarId } }),
     ]);
+
+    for (const f of filesToUnlink) {
+      try {
+        if (fs.existsSync(f.storagePath)) fs.unlinkSync(f.storagePath);
+      } catch (err) {
+        console.error('[remove calendar] file cleanup failed', f.storagePath, err);
+      }
+    }
 
     return { deleted: true, id: calendarId };
   }

@@ -1,25 +1,55 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable } from "react-native";
+import { View, Text, TextInput, Pressable, ScrollView } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ApiError } from "../../../src/lib/api";
+import { DateTimeField } from "../../../components/date-time-field";
+import { colorForTheme } from "../../../src/lib/theme";
+import { CalendarColorBar } from "../../../components/calendar-color-bar";
+import { HomeHeaderButton } from "../../../components/home-header-button";
+
+function defaultStart(): Date {
+  const d = new Date();
+  d.setMinutes(0, 0, 0);
+  d.setHours(d.getHours() + 1);
+  return d;
+}
+
+function defaultEnd(start: Date): Date {
+  const d = new Date(start);
+  d.setHours(d.getHours() + 1);
+  return d;
+}
 
 export default function CreateEventScreen() {
   const params = useLocalSearchParams();
   const idRaw = params.id;
   const calendarId = Array.isArray(idRaw) ? idRaw[0] : idRaw;
+  const nameRaw = params.name;
+  const calendarName = Array.isArray(nameRaw) ? nameRaw[0] : nameRaw;
+  const themeRaw = params.theme;
+  const calendarTheme = Array.isArray(themeRaw) ? themeRaw[0] : themeRaw;
+  const calendarColor = colorForTheme(calendarTheme);
 
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
 
-  // MVP: on tape des ISO strings (on fera un date picker ensuite)
-  const [startDateTime, setStartDateTime] = useState("2026-03-28T16:50:00.000Z");
-  const [endDateTime, setEndDateTime] = useState("2026-03-28T17:50:00.000Z");
+  const [startDateTime, setStartDateTime] = useState<Date>(defaultStart);
+  const [endDateTime, setEndDateTime] = useState<Date>(() => defaultEnd(defaultStart()));
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function onChangeStart(next: Date) {
+    setStartDateTime(next);
+    if (endDateTime <= next) {
+      setEndDateTime(defaultEnd(next));
+    }
+  }
 
   async function onCreate() {
     if (!calendarId) return;
@@ -27,6 +57,11 @@ export default function CreateEventScreen() {
     const t = title.trim();
     if (!t) {
       setError("Le titre est requis");
+      return;
+    }
+
+    if (endDateTime <= startDateTime) {
+      setError("La fin doit être après le début");
       return;
     }
 
@@ -38,12 +73,15 @@ export default function CreateEventScreen() {
         title: t,
         description: description.trim() ? description.trim() : null,
         location: location.trim() ? location.trim() : null,
-        startDateTime,
-        endDateTime,
+        startDateTime: startDateTime.toISOString(),
+        endDateTime: endDateTime.toISOString(),
       });
 
       // Retour sur la liste d'événements du calendrier
-      router.replace({ pathname: "/calendars/[id]/events", params: { id: calendarId } });
+      router.replace({
+        pathname: "/calendars/[id]/events",
+        params: { id: calendarId, name: calendarName ?? "", theme: calendarTheme ?? "" },
+      });
     } catch (e: any) {
       if (e instanceof ApiError) setError(e.message);
       else setError("Erreur inconnue");
@@ -53,9 +91,19 @@ export default function CreateEventScreen() {
   }
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <Stack.Screen options={{ title: "Créer un événement" }} />
+    <View style={{ flex: 1 }}>
+      <Stack.Screen
+        options={{
+          title: calendarName ? `${calendarName} · Créer un événement` : "Créer un événement",
+          headerShown: true,
+          headerTintColor: calendarColor || undefined,
+          headerRight: () => <HomeHeaderButton />,
+          contentStyle: { paddingBottom: insets.bottom },
+        }}
+      />
+      <CalendarColorBar color={calendarColor} />
 
+      <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
       {error ? <Text style={{ color: "red" }}>{error}</Text> : null}
 
       <Text>Titre *</Text>
@@ -80,20 +128,12 @@ export default function CreateEventScreen() {
         style={{ borderWidth: 1, padding: 10, borderRadius: 10 }}
       />
 
-      <Text>StartDateTime (ISO UTC)</Text>
-      <TextInput
-        value={startDateTime}
-        onChangeText={setStartDateTime}
-        autoCapitalize="none"
-        style={{ borderWidth: 1, padding: 10, borderRadius: 10 }}
-      />
-
-      <Text>EndDateTime (ISO UTC)</Text>
-      <TextInput
+      <DateTimeField label="Début" value={startDateTime} onChange={onChangeStart} />
+      <DateTimeField
+        label="Fin"
         value={endDateTime}
-        onChangeText={setEndDateTime}
-        autoCapitalize="none"
-        style={{ borderWidth: 1, padding: 10, borderRadius: 10 }}
+        onChange={setEndDateTime}
+        minimumDate={startDateTime}
       />
 
       <Pressable
@@ -109,6 +149,7 @@ export default function CreateEventScreen() {
       >
         <Text>{loading ? "Création..." : "Créer"}</Text>
       </Pressable>
+      </ScrollView>
     </View>
   );
 }

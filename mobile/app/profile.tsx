@@ -1,11 +1,9 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, Pressable, ScrollView, Alert } from "react-native";
-import { useRouter } from "expo-router";
 import { useSession } from "../src/lib/session";
 import { api, ApiError } from "../src/lib/api";
 
 export default function ProfileScreen() {
-  const router = useRouter();
   const { me, refreshMe, logout } = useSession();
 
   const [name, setName] = useState(me?.user.name ?? "");
@@ -47,7 +45,10 @@ export default function ProfileScreen() {
         style: "destructive",
         onPress: async () => {
           await logout();
-          router.replace("/login");
+          // Le gate dans _layout redirige automatiquement vers /login dès
+          // que la session devient vide (même pattern que la connexion) —
+          // un router.replace() manuel ici en double avec cet effet pouvait
+          // faire dérailler la pile de navigation.
         },
       },
     ]);

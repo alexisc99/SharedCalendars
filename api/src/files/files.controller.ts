@@ -32,15 +32,19 @@ export class FilesController {
     @Body('calendarId') calendarIdBody?: string,
     @Query('eventId') eventIdQuery?: string,
     @Body('eventId') eventIdBody?: string,
+    @Query('purpose') purposeQuery?: string,
+    @Body('purpose') purposeBody?: string,
   ) {
     const calendarId = calendarIdQuery ?? calendarIdBody;
     const eventId = eventIdQuery ?? eventIdBody;
+    const purpose = purposeQuery ?? purposeBody;
 
     const result = await this.filesService.uploadFile({
       userId,
       file,
       calendarId,
       eventId,
+      purpose,
     });
     return {
       success: true,

@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "aqua-brawler-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:\\Users\\alexi\\Documents\\Dev\\aqua-brawler", "run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "myapp-mobile-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:\\Users\\alexi\\Documents\\Dev\\myapp\\mobile", "run", "web"],
+      "port": 8081
+    }
+  ]
+}

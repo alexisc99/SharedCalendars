@@ -18,6 +18,8 @@ export class DashboardCalendarActivityDto {
 export class DashboardCalendarDto {
   id!: string;
   name!: string;
+  theme!: string;
+  coverImageUrl!: string | null;
   role!: MemberRole;
   isPremium!: boolean;
   publicIcsEnabled!: boolean;
@@ -29,6 +31,8 @@ export class DashboardCalendarDto {
 export class DashboardUpcomingEventDto {
   id!: string;
   calendarId!: string;
+  calendarName!: string;
+  theme!: string;
   title!: string;
   startDateTime!: Date;
   endDateTime!: Date;

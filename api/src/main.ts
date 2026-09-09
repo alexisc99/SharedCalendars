@@ -66,7 +66,11 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document);
   SwaggerModule.setup('v1/docs', app, document);
 
-  await app.listen(3000, '0.0.0.0');
+  // Pas de host explicite : Node écoute alors en dual-stack (IPv4 + IPv6).
+  // Avec '0.0.0.0' (IPv4 uniquement), une résolution de "localhost" en IPv6
+  // (::1) — ce qui arrive de façon intermittente selon l'OS/le résolveur —
+  // échoue silencieusement côté client ("Network request failed").
+  await app.listen(3000);
 }
 
 bootstrap();
