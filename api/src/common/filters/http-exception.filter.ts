@@ -4,11 +4,14 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 @Catch()
 export class GlobalHttpExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalHttpExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
@@ -50,8 +53,15 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
     }
 
     // Unknown / unhandled error
-    // Avoid leaking internal error details in prod; keep message generic
+    // Avoid leaking internal error details to the CLIENT in prod (message
+    // stays generic below), but always log the real cause server-side —
+    // sinon un 500 est totalement muet, y compris pour nous en dev.
     const statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+
+    this.logger.error(
+      `${req.method} ${path} — ${(exception as any)?.message ?? exception}`,
+      (exception as any)?.stack,
+    );
 
     return res.status(statusCode).json({
       statusCode,

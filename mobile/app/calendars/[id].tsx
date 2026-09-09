@@ -324,6 +324,26 @@ export default function CalendarHomeScreen() {
               <Text>Modifier le calendrier</Text>
             </Pressable>
           ) : null}
+
+          {data?.calendar.role === "owner" || data?.calendar.role === "admin" ? (
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: "/calendars/[id]/stats",
+                  params: subParams,
+                })
+              }
+              style={{
+                padding: 12,
+                borderRadius: 10,
+                alignItems: "center",
+                borderWidth: 1,
+                marginTop: 8,
+              }}
+            >
+              <Text>Statistiques</Text>
+            </Pressable>
+          ) : null}
         </ScrollView>
       )}
     </View>

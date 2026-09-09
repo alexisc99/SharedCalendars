@@ -73,6 +73,12 @@ export class StatsService {
       take: 5,
     });
 
+    const contributorUsers = await this.prisma.user.findMany({
+      where: { id: { in: topContributors.map((c) => c.userId) } },
+      select: { id: true, name: true, avatarUrl: true },
+    });
+    const contributorById = new Map(contributorUsers.map((u) => [u.id, u]));
+
     return {
       totals: {
         eventsCreated,
@@ -86,6 +92,8 @@ export class StatsService {
       },
       topContributors: topContributors.map((c) => ({
         userId: c.userId,
+        name: contributorById.get(c.userId)?.name ?? null,
+        avatarUrl: contributorById.get(c.userId)?.avatarUrl ?? null,
         actions: c._count.userId,
       })),
     };

@@ -14,6 +14,7 @@ import { useSession } from "../../../src/lib/session";
 import { colorForTheme } from "../../../src/lib/theme";
 import { CalendarColorBar } from "../../../components/calendar-color-bar";
 import { HomeHeaderButton } from "../../../components/home-header-button";
+import { Avatar } from "../../../components/avatar";
 
 type MemberRole = "owner" | "admin" | "editor" | "viewer" | "member";
 
@@ -208,10 +209,13 @@ export default function CalendarMembersScreen() {
                   opacity: isBusy ? 0.5 : 1,
                 }}
               >
-                <Text style={{ fontSize: 16, fontWeight: "600" }}>
-                  {item.user.name || item.user.email}
-                  {isSelf ? " (toi)" : ""}
-                </Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <Avatar uri={item.user.avatarUrl} name={item.user.name ?? item.user.email} size={36} />
+                  <Text style={{ fontSize: 16, fontWeight: "600" }}>
+                    {item.user.name || item.user.email}
+                    {isSelf ? " (toi)" : ""}
+                  </Text>
+                </View>
                 <Text style={{ opacity: 0.7 }}>{item.user.email}</Text>
                 <Text>Rôle : {item.role}</Text>
 

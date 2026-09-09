@@ -47,6 +47,13 @@
         {
           "photosPermission": "Autorise l'accès à tes photos pour choisir une image de couverture de calendrier."
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Autorise l'accès à tes photos pour enregistrer les images des événements.",
+          "savePhotosPermission": "Autorise l'enregistrement des images des événements dans ta galerie."
+        }
       ]
     ],
     "experiments": {

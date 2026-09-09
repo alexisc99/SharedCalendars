@@ -1,8 +1,9 @@
-import { Controller, Get, Patch, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { User } from '../auth/decorators/user.decorator';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { UpdateMeDto } from './dto/update-me.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('jwt')
@@ -17,8 +18,8 @@ export class UsersController {
   }
 
   @Patch('me')
-  async updateMe(@Req() req, @Body() body) {
-    const result = await this.usersService.updateMe(req.user.userId, body);
+  async updateMe(@User('sub') userId: string, @Body() dto: UpdateMeDto) {
+    const result = await this.usersService.updateMe(userId, dto);
     return {
       success: true,
       id: result.id,

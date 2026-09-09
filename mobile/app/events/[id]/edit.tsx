@@ -1,11 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, Pressable, ActivityIndicator, ScrollView } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ApiError } from "../../../src/lib/api";
 import type { EventDetail } from "../../../src/lib/types";
 import { DateTimeField } from "../../../components/date-time-field";
 import { HomeHeaderButton } from "../../../components/home-header-button";
+import { ReminderPicker } from "../../../components/reminder-picker";
+import { useSession } from "../../../src/lib/session";
+
+type CalendarMeta = { isPremium: boolean };
 
 export default function EditEventScreen() {
   const params = useLocalSearchParams();
@@ -14,6 +18,7 @@ export default function EditEventScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { me } = useSession();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,6 +30,11 @@ export default function EditEventScreen() {
   const [startDateTime, setStartDateTime] = useState<Date>(new Date());
   const [endDateTime, setEndDateTime] = useState<Date>(new Date());
   const [isPast, setIsPast] = useState(false);
+  const [reminders, setReminders] = useState<number[]>([]);
+  const [calendarMeta, setCalendarMeta] = useState<CalendarMeta | null>(null);
+
+  // Même règle que le backend : compte premium OU calendrier premium.
+  const hasPremium = !!calendarMeta?.isPremium || !!me?.user.isPremium;
 
   async function load() {
     if (!id) return;
@@ -39,6 +49,11 @@ export default function EditEventScreen() {
       setStartDateTime(new Date(res.startDateTime));
       setEndDateTime(new Date(res.endDateTime));
       setIsPast(new Date(res.endDateTime).getTime() < Date.now());
+      setReminders(res.reminders.map((r: { minutesBefore: number }) => r.minutesBefore));
+      api
+        .get<CalendarMeta>(`/calendars/${res.calendarId}`)
+        .then(setCalendarMeta)
+        .catch(() => {});
     } catch (e: any) {
       if (e instanceof ApiError) setError(e.message);
       else setError("Erreur inconnue");
@@ -68,6 +83,7 @@ export default function EditEventScreen() {
       const body: Record<string, unknown> = {
         title: t,
         description: description.trim() ? description.trim() : null,
+        reminders: reminders.map((minutesBefore) => ({ minutesBefore })),
       };
       // Un événement passé ne peut plus changer d'heure ni de lieu (règle backend).
       if (!isPast) {
@@ -93,7 +109,7 @@ export default function EditEventScreen() {
   }, [id]);
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
+    <View style={{ flex: 1 }}>
       <Stack.Screen
         options={{
           title: "Modifier l'événement",
@@ -108,7 +124,7 @@ export default function EditEventScreen() {
           <ActivityIndicator />
         </View>
       ) : (
-        <>
+        <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
           {error ? <Text style={{ color: "red" }}>{error}</Text> : null}
 
           <Text>Titre *</Text>
@@ -159,6 +175,8 @@ export default function EditEventScreen() {
             disabled={isPast}
           />
 
+          <ReminderPicker value={reminders} onChange={setReminders} isPremium={hasPremium} />
+
           <Pressable
             onPress={save}
             disabled={saving}
@@ -172,7 +190,7 @@ export default function EditEventScreen() {
           >
             <Text>{saving ? "Sauvegarde..." : "Sauvegarder"}</Text>
           </Pressable>
-        </>
+        </ScrollView>
       )}
     </View>
   );

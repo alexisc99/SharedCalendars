@@ -24,35 +24,6 @@ export class AuditService {
       console.error('[AUDIT_LOG_ERROR]', err);
     }
   }
-  async getLogs({
-    calendarId,
-    entity,
-    entityId,
-    limit,
-    cursor,
-  }: {
-    calendarId: string;
-    entity?: string;
-    entityId?: string;
-    limit: number;
-    cursor?: string;
-  }) {
-    return this.prisma.auditLog.findMany({
-      where: {
-        ...(entity ? { entity } : {}),
-        ...(entityId ? { entityId } : {}),
-        metadata: {
-          path: ['calendarId'],
-          equals: calendarId,
-        },
-      },
-      take: limit,
-      skip: cursor ? 1 : 0,
-      ...(cursor && { cursor: { id: cursor } }),
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
   async listUserAudit(userId: string, query: AuditListQueryDto) {
     assertValidRange(query.from, query.to);
     const limit = query.limit ?? 50;

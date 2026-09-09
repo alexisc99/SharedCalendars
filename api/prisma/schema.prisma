@@ -63,6 +63,7 @@ model User {
   memberships                 CalendarMember[]
   events                      Event[]                      @relation("EventCreator")
   comments                    Comment[]
+  deletedComments             Comment[]                    @relation("CommentDeletedBy")
   rsvps                       EventRsvp[]
   PollVote                    PollVote[]
   notifications               Notification[]
@@ -123,6 +124,11 @@ model InvitationLink {
   calendarId String
   token      String   @unique
   createdAt  DateTime @default(now())
+  // Toujours fourni explicitement par InvitationsService (createdAt + 7
+  // jours) — le @default(now()) ne sert qu'à rétro-remplir les lignes
+  // existantes lors de la migration (donc immédiatement expirées, ce qui est
+  // le comportement souhaité pour d'anciens liens jamais bornés dans le temps).
+  expiresAt  DateTime @default(now())
 
   calendar Calendar @relation(fields: [calendarId], references: [id])
 }
@@ -135,9 +141,9 @@ model Event {
   creatorId String
   creator   User   @relation("EventCreator", fields: [creatorId], references: [id])
 
-  title       String
-  description String?
-  location    String?
+  title           String
+  description     String?
+  location        String?
   locationAddress String? //utile pour créer un lien google maps
 
   startDateTime DateTime
@@ -208,7 +214,17 @@ model Comment {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  text      String
+  text     String
+  editedAt DateTime? // horodatage de la dernière modification (affiche "modifié")
+
+  // Suppression douce : on garde la ligne (position dans la conversation,
+  // auteur) mais on vide le contenu — un commentaire supprimé s'affiche
+  // comme "Message supprimé" plutôt que de disparaître sans laisser de
+  // trace, ce qui casserait la cohérence d'une conversation à plusieurs.
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?     @relation("CommentDeletedBy", fields: [deletedById], references: [id])
+
   createdAt DateTime @default(now())
 
   @@index([eventId, createdAt, id]) // pagination comments

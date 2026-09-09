@@ -3,6 +3,7 @@ import {
   UseGuards,
   Post,
   Get,
+  Patch,
   Delete,
   Param,
   Body,
@@ -34,6 +35,24 @@ export class CommentController {
   @Get()
   getComments(@User('sub') userId: string, @Param('eventId') eventId: string) {
     return this.commentService.getComments(userId, eventId);
+  }
+
+  @Patch(':commentId')
+  async editComment(
+    @User('sub') userId: string,
+    @Param('commentId') commentId: string,
+    @Body() dto: CommentDto,
+  ) {
+    const result = await this.commentService.editComment(
+      userId,
+      commentId,
+      dto.text,
+    );
+    return {
+      success: true,
+      id: result.id,
+      data: result,
+    };
   }
 
   @Delete(':commentId')

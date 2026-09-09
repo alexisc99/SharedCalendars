@@ -119,6 +119,17 @@ export class EventsService {
         }
       }
 
+      // Rappels : la validation (max 1 en gratuit) se fait plus haut, mais
+      // rien ne créait jamais les lignes EventReminder correspondantes.
+      if (dto.reminders && dto.reminders.length > 0) {
+        await tx.eventReminder.createMany({
+          data: dto.reminders.map((r) => ({
+            eventId: event.id,
+            minutesBefore: r.minutesBefore,
+          })),
+        });
+      }
+
       // NOTIFICATION
       const members = await tx.calendarMember.findMany({
         where: { calendarId },
@@ -566,12 +577,18 @@ export class EventsService {
       where: { id: eventId },
       include: {
         calendar: { select: { id: true } },
-        creator: { select: { id: true, name: true } },
+        creator: { select: { id: true, name: true, avatarUrl: true } },
         reminders: {
           select: { id: true, minutesBefore: true },
           orderBy: { minutesBefore: 'asc' },
         },
-        rsvps: { select: { userId: true, status: true } },
+        rsvps: {
+          select: {
+            userId: true,
+            status: true,
+            user: { select: { id: true, name: true, avatarUrl: true } },
+          },
+        },
         pollOptions: {
           select: {
             id: true,
@@ -639,6 +656,7 @@ export class EventsService {
         filename: true,
         mimeType: true,
         size: true,
+        uploadedById: true,
         createdAt: true,
       },
     });
@@ -659,11 +677,20 @@ export class EventsService {
       if (r.userId === userId) mine = r.status;
     }
 
+    // Détail "qui a répondu quoi" — pour savoir si une personne précise vient.
+    const voters = event.rsvps.map((r) => ({
+      userId: r.userId,
+      name: r.user.name,
+      avatarUrl: r.user.avatarUrl,
+      status: r.status,
+    }));
+
     // Poll shaping
     const poll =
       event.type === 'POLL'
         ? {
             finalizedOptionId: event.finalizedOptionId ?? null,
+            finalizedEventId: event.finalizedEventId ?? null,
             options: event.pollOptions.map((o) => ({
               id: o.id,
               label: o.label,
@@ -694,7 +721,7 @@ export class EventsService {
 
       reminders: event.reminders,
 
-      rsvp: { mine, counts },
+      rsvp: { mine, counts, voters },
 
       comments: {
         total: event._count.comments,
@@ -767,22 +794,41 @@ export class EventsService {
       );
     }
 
-    return this.prisma.event.update({
-      where: { id: eventId },
-      data: {
-        title: dto.title ?? event.title,
-        description: dto.description ?? event.description,
-        location: dto.location ?? event.location,
-        locationAddress: dto.locationAddress ?? null,
-        startDateTime: dto.startDateTime
-          ? new Date(dto.startDateTime)
-          : event.startDateTime,
-        endDateTime: dto.endDateTime
-          ? new Date(dto.endDateTime)
-          : event.endDateTime,
-        type: dto.type ?? event.type,
-        recurrenceRule: dto.recurrenceRule ?? event.recurrenceRule,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.event.update({
+        where: { id: eventId },
+        data: {
+          title: dto.title ?? event.title,
+          description: dto.description ?? event.description,
+          location: dto.location ?? event.location,
+          locationAddress: dto.locationAddress ?? null,
+          startDateTime: dto.startDateTime
+            ? new Date(dto.startDateTime)
+            : event.startDateTime,
+          endDateTime: dto.endDateTime
+            ? new Date(dto.endDateTime)
+            : event.endDateTime,
+          type: dto.type ?? event.type,
+          recurrenceRule: dto.recurrenceRule ?? event.recurrenceRule,
+        },
+      });
+
+      // Rappels : comme à la création, dto.reminders n'était jamais
+      // persisté. Quand le champ est fourni, il remplace intégralement la
+      // liste existante (même logique qu'un formulaire "reminders: [...]").
+      if (dto.reminders !== undefined) {
+        await tx.eventReminder.deleteMany({ where: { eventId } });
+        if (dto.reminders.length > 0) {
+          await tx.eventReminder.createMany({
+            data: dto.reminders.map((r) => ({
+              eventId,
+              minutesBefore: r.minutesBefore,
+            })),
+          });
+        }
+      }
+
+      return updated;
     });
   }
 

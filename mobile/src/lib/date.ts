@@ -73,6 +73,24 @@ export function addMonths(date: Date, delta: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + delta, 1);
 }
 
+/** "1 jour avant", "2 heures avant", "1 h 30 avant", "15 minutes avant"… */
+export function formatLeadTime(minutesBefore: number): string {
+  if (minutesBefore % 1440 === 0) {
+    const days = minutesBefore / 1440;
+    return `${days} jour${days > 1 ? "s" : ""} avant`;
+  }
+  if (minutesBefore % 60 === 0) {
+    const hours = minutesBefore / 60;
+    return `${hours} heure${hours > 1 ? "s" : ""} avant`;
+  }
+  if (minutesBefore > 60) {
+    const hours = Math.floor(minutesBefore / 60);
+    const rest = minutesBefore % 60;
+    return `${hours} h ${String(rest).padStart(2, "0")} avant`;
+  }
+  return `${minutesBefore} minute${minutesBefore > 1 ? "s" : ""} avant`;
+}
+
 export function toDateKey(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");

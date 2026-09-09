@@ -73,7 +73,10 @@ export class FilesService {
 
     const hasPremium = user.isPremium || calendar?.isPremium === true;
 
-    if (!hasPremium) {
+    // La photo de profil est une fonctionnalité de base, pas premium —
+    // contrairement à l'image de couverture d'un calendrier ou aux pièces
+    // jointes d'un événement.
+    if (purpose !== 'avatar' && !hasPremium) {
       throw new ForbiddenException('File upload requires premium');
     }
 
@@ -111,7 +114,7 @@ export class FilesService {
             mimeType: file.mimetype,
             size: file.size,
             storagePath: storedPath,
-            visibility: eventId ? 'EVENT' : 'CALENDAR',
+            visibility: eventId ? 'EVENT' : calendarId ? 'CALENDAR' : 'PRIVATE',
             uploadedById: userId,
             calendarId,
             eventId,
@@ -119,10 +122,15 @@ export class FilesService {
         });
         this.auditService.log({
           userId,
-          // Une image de couverture n'est pas un contenu partagé avec le
-          // calendrier (comme une pièce jointe) — action différente pour ne
-          // pas compter dans les stats d'activité "fichiers".
-          action: purpose === 'cover' ? 'COVER_IMAGE_UPLOAD' : 'FILE_UPLOAD',
+          // Une image de couverture / de profil n'est pas un contenu partagé
+          // avec le calendrier (comme une pièce jointe) — action différente
+          // pour ne pas compter dans les stats d'activité "fichiers".
+          action:
+            purpose === 'cover'
+              ? 'COVER_IMAGE_UPLOAD'
+              : purpose === 'avatar'
+                ? 'AVATAR_UPLOAD'
+                : 'FILE_UPLOAD',
           entity: 'File',
           entityId: createdFile.id,
           metadata: {
@@ -151,20 +159,39 @@ export class FilesService {
     const file = await this.prisma.file.findUnique({
       where: { id: fileId },
       include: {
-        calendar: {
-          include: {
-            members: true,
-          },
-        },
+        // Une pièce jointe d'événement n'a pas forcément calendarId renseigné
+        // (seulement eventId) — on remonte donc aussi jusqu'au calendrier de
+        // l'événement pour vérifier l'appartenance.
+        event: { select: { calendarId: true } },
       },
     });
 
     if (!file) throw new NotFoundException('File not found');
 
     const isUploader = file.uploadedById === userId;
-    const isMember = file.calendar?.members.some((m) => m.userId === userId);
 
-    if (!isUploader && !isMember) {
+    const calendarId = file.calendarId ?? file.event?.calendarId ?? null;
+    const isMember = calendarId
+      ? !!(await this.prisma.calendarMember.findFirst({
+          where: { calendarId, userId },
+          select: { id: true },
+        }))
+      : false;
+
+    // Une photo de profil est visible par n'importe quel utilisateur connecté
+    // (comme dans la plupart des apps) — elle n'est liée à aucun calendrier
+    // précis, donc la vérification d'appartenance ci-dessus ne peut jamais
+    // s'appliquer pour elle. On vérifie juste qu'il s'agit bien de l'avatar
+    // actuel de quelqu'un (et pas d'un fichier orphelin quelconque).
+    const isSomeonesAvatar =
+      !isUploader && !isMember
+        ? await this.prisma.user.findFirst({
+            where: { avatarUrl: `/files/${fileId}` },
+            select: { id: true },
+          })
+        : null;
+
+    if (!isUploader && !isMember && !isSomeonesAvatar) {
       throw new ForbiddenException('Access denied');
     }
 

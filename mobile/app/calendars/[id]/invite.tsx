@@ -1,16 +1,25 @@
-import React, { useState } from "react";
-import { View, Text, Pressable, Share, ActivityIndicator } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, Pressable, Share, ActivityIndicator, Alert } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ApiError } from "../../../src/lib/api";
 import { colorForTheme } from "../../../src/lib/theme";
+import { formatDateTime } from "../../../src/lib/date";
 import { CalendarColorBar } from "../../../components/calendar-color-bar";
 import { HomeHeaderButton } from "../../../components/home-header-button";
+
+type InvitationLink = {
+  id: string;
+  calendarId: string;
+  token: string;
+  createdAt: string;
+  expiresAt: string;
+};
 
 type InvitationResponse = {
   success: boolean;
   id: string;
-  data: { id: string; calendarId: string; token: string; createdAt: string };
+  data: InvitationLink;
 };
 
 export default function InviteScreen() {
@@ -25,27 +34,73 @@ export default function InviteScreen() {
 
   const insets = useSafeAreaInsets();
 
-  const [loading, setLoading] = useState(false);
+  const [links, setLinks] = useState<InvitationLink[]>([]);
+  const [loadingLinks, setLoadingLinks] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+
+  async function loadLinks() {
+    if (!id) return;
+    setLoadingLinks(true);
+    try {
+      const res = await api.get<InvitationLink[]>(`/calendars/${id}/invitations`);
+      setLinks(res);
+    } catch {
+      // pas bloquant : l'écran reste utilisable pour en générer un nouveau
+    } finally {
+      setLoadingLinks(false);
+    }
+  }
+
+  useEffect(() => {
+    loadLinks();
+  }, [id]);
 
   async function generate() {
     if (!id) return;
     setError(null);
-    setLoading(true);
+    setGenerating(true);
     try {
       const res = await api.post<InvitationResponse>(`/calendars/${id}/invitations`);
-      setToken(res.data.token);
+      setLinks((prev) => [res.data, ...prev]);
     } catch (e: any) {
       if (e instanceof ApiError) setError(e.message);
       else setError(e?.message ?? "Erreur inconnue");
     } finally {
-      setLoading(false);
+      setGenerating(false);
     }
   }
 
-  async function share() {
-    if (!token) return;
+  function revoke(link: InvitationLink) {
+    Alert.alert(
+      "Révoquer ce lien",
+      "Il ne pourra plus être utilisé pour rejoindre le calendrier.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Révoquer",
+          style: "destructive",
+          onPress: async () => {
+            setRevokingId(link.id);
+            try {
+              await api.del(`/calendars/${id}/invitations/${link.id}`);
+              setLinks((prev) => prev.filter((l) => l.id !== link.id));
+            } catch (e: any) {
+              Alert.alert(
+                "Erreur",
+                e instanceof ApiError ? e.message : "La révocation a échoué",
+              );
+            } finally {
+              setRevokingId(null);
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  async function share(token: string) {
     try {
       await Share.share({
         message: `Rejoins mon calendrier MyApp : ${token}`,
@@ -69,49 +124,67 @@ export default function InviteScreen() {
       <CalendarColorBar color={calendarColor} />
 
       <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <Text style={{ opacity: 0.7 }}>
-        Génère un lien d'invitation. Le destinataire le saisira dans « Rejoindre via lien ».
-      </Text>
+        <Text style={{ opacity: 0.7 }}>
+          Génère un lien d'invitation valable 7 jours, réutilisable par tout le monde à qui tu
+          l'envoies (un groupe WhatsApp entier peut rejoindre avec un seul lien).
+        </Text>
 
-      {!token ? (
         <Pressable
           onPress={generate}
-          disabled={loading}
+          disabled={generating}
           style={{
             padding: 12,
             borderRadius: 10,
             alignItems: "center",
             borderWidth: 1,
-            opacity: loading ? 0.6 : 1,
+            opacity: generating ? 0.6 : 1,
           }}
         >
-          {loading ? <ActivityIndicator /> : <Text>Générer un lien</Text>}
+          {generating ? <ActivityIndicator /> : <Text>Générer un nouveau lien</Text>}
         </Pressable>
-      ) : (
-        <View style={{ gap: 8 }}>
-          <View style={{ padding: 12, borderRadius: 10, borderWidth: 1 }}>
-            <Text style={{ opacity: 0.6, marginBottom: 4 }}>Token</Text>
-            <Text selectable style={{ fontFamily: "Courier" }}>
-              {token}
-            </Text>
-          </View>
-          <Pressable
-            onPress={share}
-            style={{ padding: 12, borderRadius: 10, alignItems: "center", borderWidth: 1 }}
-          >
-            <Text>Partager</Text>
-          </Pressable>
-          <Pressable
-            onPress={generate}
-            disabled={loading}
-            style={{ padding: 12, borderRadius: 10, alignItems: "center", borderWidth: 1, opacity: loading ? 0.6 : 1 }}
-          >
-            <Text>Régénérer un autre lien</Text>
-          </Pressable>
-        </View>
-      )}
 
-      {error ? <Text style={{ color: "red" }}>{error}</Text> : null}
+        {error ? <Text style={{ color: "red" }}>{error}</Text> : null}
+
+        <Text style={{ fontWeight: "600", marginTop: 8 }}>Liens actifs</Text>
+
+        {loadingLinks ? (
+          <ActivityIndicator />
+        ) : links.length === 0 ? (
+          <Text style={{ opacity: 0.6 }}>Aucun lien actif pour l'instant</Text>
+        ) : (
+          links.map((link) => {
+            const isBusy = revokingId === link.id;
+            return (
+              <View
+                key={link.id}
+                style={{ padding: 12, borderRadius: 10, borderWidth: 1, gap: 6, opacity: isBusy ? 0.5 : 1 }}
+              >
+                <Text selectable style={{ fontFamily: "Courier", fontSize: 12 }}>
+                  {link.token}
+                </Text>
+                <Text style={{ opacity: 0.6, fontSize: 12 }}>
+                  Expire le {formatDateTime(link.expiresAt)}
+                </Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <Pressable
+                    onPress={() => share(link.token)}
+                    disabled={isBusy}
+                    style={{ flex: 1, padding: 10, borderRadius: 8, alignItems: "center", borderWidth: 1 }}
+                  >
+                    <Text>Partager</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => revoke(link)}
+                    disabled={isBusy}
+                    style={{ flex: 1, padding: 10, borderRadius: 8, alignItems: "center", borderWidth: 1 }}
+                  >
+                    <Text style={{ color: "red" }}>Révoquer</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })
+        )}
       </View>
     </View>
   );

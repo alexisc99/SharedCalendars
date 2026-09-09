@@ -38,7 +38,18 @@ export class CommentService {
         text: dto.text,
       },
       include: {
-        user: true,
+        // select ciblé : "user: true" renverrait aussi le hash du mot de
+        // passe dans la réponse de l'API.
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            isPremium: true,
+            createdAt: true,
+          },
+        },
         event: true,
       },
     });
@@ -99,8 +110,42 @@ export class CommentService {
             createdAt: true,
           },
         },
+        deletedBy: {
+          select: { id: true, name: true },
+        },
       },
       orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  // EDIT COMMENT — seul l'auteur peut réécrire son propre message (contrairement
+  // à la suppression, ça n'a pas de sens qu'un admin réécrive les mots de
+  // quelqu'un d'autre).
+  async editComment(userId: string, commentId: string, text: string) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+    });
+    if (!comment) throw new NotFoundException('Comment not found');
+    if (comment.deletedAt)
+      throw new ForbiddenException('This comment has been deleted');
+    if (comment.userId !== userId)
+      throw new ForbiddenException('You can only edit your own comments');
+
+    return this.prisma.comment.update({
+      where: { id: commentId },
+      data: { text, editedAt: new Date() },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+            isPremium: true,
+            createdAt: true,
+          },
+        },
+      },
     });
   }
 
@@ -115,6 +160,7 @@ export class CommentService {
     });
 
     if (!comment) throw new NotFoundException('Comment not found');
+    if (comment.deletedAt) return { success: true }; // déjà supprimé, idempotent
 
     const membership = await this.prisma.calendarMember.findFirst({
       where: { userId, calendarId: comment.event.calendarId },
@@ -130,8 +176,30 @@ export class CommentService {
       throw new ForbiddenException('You cannot delete this comment');
     }
 
-    await this.prisma.comment.delete({
+    // Suppression douce : on garde la ligne (position dans la conversation,
+    // auteur) mais on vide le contenu — sinon un utilisateur qui retire un
+    // message à chaud dans une discussion à plusieurs laisserait un trou
+    // incompréhensible ("il répond à quoi ?"). Le texte original n'est pas
+    // conservé : une fois supprimé, le contenu est vraiment parti, seul le
+    // fait qu'un message a existé (et par qui il a été retiré) reste visible.
+    await this.prisma.comment.update({
       where: { id: commentId },
+      data: {
+        text: '',
+        deletedAt: new Date(),
+        deletedById: userId,
+      },
+    });
+
+    this.auditService.log({
+      userId,
+      action: 'COMMENT_DELETE',
+      entity: 'Comment',
+      entityId: commentId,
+      metadata: {
+        eventId: comment.eventId,
+        calendarId: comment.event.calendarId,
+      },
     });
 
     return { success: true };

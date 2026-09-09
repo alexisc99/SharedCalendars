@@ -69,6 +69,29 @@ export type CursorList<T> = {
   nextCursor: string | null;
 };
 
+export type EventFileItem = {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  uploadedById: string;
+  createdAt: string;
+};
+
+export type EventPollOption = {
+  id: string;
+  label: string;
+  optionType: "DATE" | "LOCATION";
+  votesCount: number;
+  votedByMe: boolean;
+};
+
+export type EventPoll = {
+  finalizedOptionId: string | null;
+  finalizedEventId: string | null;
+  options: EventPollOption[];
+};
+
 export type EventDetail = {
   id: string;
   calendarId: string;
@@ -81,15 +104,21 @@ export type EventDetail = {
   endDateTime: string;
   type: string;
   status: "PUBLISHED" | "PENDING";
-  createdBy: { id: string; name: string };
+  createdBy: { id: string; name: string; avatarUrl: string | null };
   reminders: any[];
   rsvp: {
     mine: "YES" | "MAYBE" | "NO" | null;
     counts: { YES: number; MAYBE: number; NO: number };
+    voters: {
+      userId: string;
+      name: string;
+      avatarUrl: string | null;
+      status: "YES" | "MAYBE" | "NO";
+    }[];
   };
   comments: CursorList<any>;
-  files: CursorList<any>;
-  poll: any | null;
+  files: CursorList<EventFileItem>;
+  poll: EventPoll | null;
   google: {
     synced: boolean;
     imported: boolean;
@@ -106,6 +135,9 @@ export type CommentItem = {
   userId: string;
   text: string;
   createdAt: string;
+  editedAt: string | null;
+  deletedAt: string | null;
+  deletedBy: { id: string; name: string | null } | null;
   user: {
     id: string;
     email: string;
@@ -113,7 +145,6 @@ export type CommentItem = {
     avatarUrl: string | null;
     isPremium: boolean;
     createdAt: string;
-    // NOTE: le backend renvoie aussi "password" actuellement, mais on l'ignore volontairement côté front
   };
 };
 

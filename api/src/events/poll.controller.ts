@@ -1,4 +1,11 @@
-import { Controller, Post, Get, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Delete,
+  Get,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '../auth/auth.guard';
 import { PollService } from './poll.service';
 import { User } from '../auth/decorators/user.decorator';
@@ -21,6 +28,20 @@ export class PollController {
       data: result,
     };
   }
+
+  @Delete('options/:optionId/vote')
+  async unvote(
+    @User('sub') userId: string,
+    @Param('eventId') eventId: string,
+    @Param('optionId') optionId: string,
+  ) {
+    const result = await this.pollService.unvote(userId, eventId, optionId);
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
   @Post('finalize/:optionId')
   async finalizePoll(
     @User('sub') userId: string,

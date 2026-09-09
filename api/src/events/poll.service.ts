@@ -12,8 +12,8 @@ export class PollService {
     private notifications: NotificationsService,
   ) {}
 
-  async vote(userId: string, eventId: string, optionId: string) {
-    // Vérifier que le poll existe
+  /** Vérifications communes à vote() et unvote() : poll valide + membre autorisé à voter. */
+  private async checkVotable(userId: string, eventId: string, optionId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       include: { pollOptions: true },
@@ -37,14 +37,44 @@ export class PollService {
     if (membership.role === 'viewer')
       throw new ForbiddenException('Viewers cannot vote');
 
-    // upsert vote
-    return this.prisma.pollVote.upsert({
-      where: {
-        optionId_userId: { optionId, userId },
-      },
-      update: {}, // même option = rien à mettre à jour
-      create: { optionId, userId },
+    return event;
+  }
+
+  async vote(userId: string, eventId: string, optionId: string) {
+    const event = await this.checkVotable(userId, eventId, optionId);
+
+    // Sondage à choix unique : voter pour une nouvelle option retire
+    // automatiquement le(s) vote(s) précédent(s) de l'utilisateur sur les
+    // autres options de ce même sondage.
+    const otherOptionIds = event.pollOptions
+      .map((o) => o.id)
+      .filter((id) => id !== optionId);
+
+    return this.prisma.$transaction(async (tx) => {
+      if (otherOptionIds.length > 0) {
+        await tx.pollVote.deleteMany({
+          where: { userId, optionId: { in: otherOptionIds } },
+        });
+      }
+      return tx.pollVote.upsert({
+        where: {
+          optionId_userId: { optionId, userId },
+        },
+        update: {}, // même option = rien à mettre à jour
+        create: { optionId, userId },
+      });
     });
+  }
+
+  /** Retire son vote pour une option — permet de désélectionner son choix. */
+  async unvote(userId: string, eventId: string, optionId: string) {
+    await this.checkVotable(userId, eventId, optionId);
+
+    await this.prisma.pollVote.deleteMany({
+      where: { userId, optionId },
+    });
+
+    return { success: true };
   }
 
   async getPoll(eventId: string, userId: string) {
@@ -101,11 +131,10 @@ export class PollService {
           'Only the owner or an admin can finalize a poll',
         );
 
-      // 4) Vérifier que ce poll n'a pas déjà été finalisé
-      if (event.finalizedOptionId)
-        throw new ForbiddenException('This poll has already been finalized');
-
-      // 5) Vérifier que l'option appartient à ce poll
+      // 4) Vérifier que l'option appartient à ce poll
+      // (pas besoin de vérifier "déjà finalisé" séparément : l'événement
+      // sondage est supprimé dès qu'il est finalisé, donc un 2e appel sur le
+      // même id tombera naturellement sur "Event not found" à l'étape 1.)
       const option = event.pollOptions.find((o) => o.id === optionId);
       if (!option) throw new ForbiddenException('Invalid poll option');
 
@@ -137,16 +166,24 @@ export class PollService {
         },
       });
 
-      // 7) Marquer le poll comme finalisé
-      await tx.event.update({
-        where: { id: event.id },
-        data: {
-          finalizedOptionId: optionId,
-          finalizedEventId: newEvent.id,
-        },
+      // 7) Transférer les pièces jointes déjà postées sur le sondage vers
+      // l'événement final (sinon elles seraient orphelines : eventId pointe
+      // vers une ligne qui va être supprimée, et File.eventId passe à NULL
+      // via la contrainte ON DELETE SET NULL — le fichier resterait sur le
+      // disque sans plus jamais être rattachable ni nettoyé).
+      await tx.file.updateMany({
+        where: { eventId: event.id },
+        data: { eventId: newEvent.id, calendarId: event.calendarId },
       });
 
-      // 8) Notifier les membres (facultatif mais prêt à l'emploi)
+      // 8) Supprimer l'événement sondage : une fois finalisé, il ferait
+      // doublon avec l'événement final (même titre) et nuirait à la
+      // lisibilité. Les rappels/RSVP/commentaires/options de vote qui lui
+      // sont propres partent avec lui (ON DELETE CASCADE) — ils concernaient
+      // la question posée, pas l'événement final qui en résulte.
+      await tx.event.delete({ where: { id: event.id } });
+
+      // 9) Notifier les membres (facultatif mais prêt à l'emploi)
       const members = await tx.calendarMember.findMany({
         where: { calendarId: event.calendarId },
       });
@@ -159,7 +196,7 @@ export class PollService {
         eventId: newEvent.id,
       });
 
-      // 9) Retourner la réponse finale
+      // 10) Retourner la réponse finale
       return {
         message: 'Poll finalized successfully',
         finalEvent: newEvent,

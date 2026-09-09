@@ -9,10 +9,10 @@ import { PollController } from './poll.controller';
 import { CommentService } from './comment.service';
 import { CommentController } from './comment.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { PermissionsModule } from '../permissions/permissions.module';
 import { AuditModule } from '../audit/audit.module';
+import { EventReminderScheduler } from './event-reminder.scheduler';
 @Module({
-  imports: [NotificationsModule, PermissionsModule, AuditModule],
+  imports: [NotificationsModule, AuditModule],
 
   controllers: [
     EventsController,
@@ -26,6 +26,7 @@ import { AuditModule } from '../audit/audit.module';
     RsvpService,
     PollService,
     CommentService,
+    EventReminderScheduler,
   ],
 })
 export class EventsModule {}
