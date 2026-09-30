@@ -14,6 +14,7 @@ import { ExportsModule } from './exports/exports.module';
 import { StatsModule } from './stats/stats.module';
 import { GoogleModule } from './integrations/google/google.module';
 import { GroupPlansModule } from './group-plans/group-plans.module';
+import { PurchasesModule } from './purchases/purchases.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { HealthModule } from './health/health.module';
@@ -47,6 +48,7 @@ import { ThrottlerIpGuard } from './common/guards/throttler-ip.guard';
     StatsModule,
     GoogleModule,
     GroupPlansModule,
+    PurchasesModule,
     HealthModule,
     ScheduleModule.forRoot(),
   ],

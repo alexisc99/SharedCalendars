@@ -14,6 +14,10 @@ import { CalendarHomeDto } from './dto/calendar-home.dto';
 import { FREE_THEMES, PREMIUM_THEMES } from './theme.constants';
 import { FilesService } from '../files/files.service';
 
+// Assez pour un usage basique (un calendrier partagé + un deuxième), assez
+// serré pour que quiconque est vraiment engagé sur l'app ressente le mur.
+const FREE_MAX_CALENDARS = 2;
+
 @Injectable()
 export class CalendarsService {
   constructor(
@@ -30,14 +34,18 @@ export class CalendarsService {
 
     const isPremium = user.isPremium;
 
-    // 1) Freemium: max 3 calendars
+    // 1) Freemium: max FREE_MAX_CALENDARS calendriers.
+    // Contrôle uniquement à la création — un calendrier déjà créé (ex:
+    // pendant une période premium) reste pleinement utilisable même après
+    // une perte de premium ; seule la création de nouveaux calendriers
+    // au-delà de la limite est bloquée (jamais de suppression forcée).
     if (!isPremium) {
       const count = await this.prisma.calendar.count({
         where: { ownerId: userId },
       });
-      if (count >= 3) {
+      if (count >= FREE_MAX_CALENDARS) {
         throw new ForbiddenException(
-          'Freemium users can only create up to 3 calendars',
+          `Freemium users can only create up to ${FREE_MAX_CALENDARS} calendars`,
         );
       }
     }
@@ -120,6 +128,23 @@ export class CalendarsService {
       orderBy: { calendar: { createdAt: 'desc' } },
     });
 
+    const calendarIds = memberships.map((m) => m.calendar.id);
+    // Comptée à part : _count.select ne permet qu'un seul compte par relation,
+    // or on veut à la fois le total (ci-dessus) et le nombre à venir.
+    const upcomingCounts = calendarIds.length
+      ? await this.prisma.event.groupBy({
+          by: ['calendarId'],
+          where: {
+            calendarId: { in: calendarIds },
+            startDateTime: { gte: new Date() },
+          },
+          _count: { _all: true },
+        })
+      : [];
+    const upcomingByCalendarId = new Map(
+      upcomingCounts.map((c) => [c.calendarId, c._count._all]),
+    );
+
     return memberships.map((m) => ({
       id: m.calendar.id,
       name: m.calendar.name,
@@ -131,6 +156,7 @@ export class CalendarsService {
       role: m.role,
       membersCount: m.calendar._count.members,
       eventsCount: m.calendar._count.events,
+      upcomingEventsCount: upcomingByCalendarId.get(m.calendar.id) ?? 0,
       createdAt: m.calendar.createdAt,
     }));
   }
@@ -493,6 +519,7 @@ export class CalendarsService {
             email: true,
             name: true,
             avatarUrl: true,
+            isPremium: true,
           },
         },
       },

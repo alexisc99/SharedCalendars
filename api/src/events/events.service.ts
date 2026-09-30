@@ -577,7 +577,7 @@ export class EventsService {
       where: { id: eventId },
       include: {
         calendar: { select: { id: true } },
-        creator: { select: { id: true, name: true, avatarUrl: true } },
+        creator: { select: { id: true, name: true, avatarUrl: true, isPremium: true } },
         reminders: {
           select: { id: true, minutesBefore: true },
           orderBy: { minutesBefore: 'asc' },
@@ -586,7 +586,7 @@ export class EventsService {
           select: {
             userId: true,
             status: true,
-            user: { select: { id: true, name: true, avatarUrl: true } },
+            user: { select: { id: true, name: true, avatarUrl: true, isPremium: true } },
           },
         },
         pollOptions: {
@@ -682,6 +682,7 @@ export class EventsService {
       userId: r.userId,
       name: r.user.name,
       avatarUrl: r.user.avatarUrl,
+      isPremium: r.user.isPremium,
       status: r.status,
     }));
 

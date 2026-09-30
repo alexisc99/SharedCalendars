@@ -13,5 +13,6 @@ import { GroupPlanExpirationService } from './group-plan-expiration.service';
     AuditService,
     GroupPlanExpirationService,
   ],
+  exports: [GroupPlansService],
 })
 export class GroupPlansModule {}

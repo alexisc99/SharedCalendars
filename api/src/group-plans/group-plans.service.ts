@@ -86,6 +86,85 @@ export class GroupPlansService {
   }
 
   /**
+   * Vrai chemin d'achat : passe un calendrier EXISTANT en premium (au
+   * contraire de provisionDev, qui crée toujours un calendrier tout neuf —
+   * pratique pour tester vite, mais inutilisable pour un achat réel : on
+   * veut rendre premium le calendrier qu'on a déjà, pas en créer un vide).
+   */
+  async purchaseForCalendar(params: {
+    ownerId: string;
+    calendarId: string;
+    seats: number;
+    expiresAt: Date;
+    provider: string;
+    providerRef: string;
+  }) {
+    const { ownerId, calendarId, seats, expiresAt, provider, providerRef } =
+      params;
+
+    const calendar = await this.prisma.calendar.findUnique({
+      where: { id: calendarId },
+      include: { groupPlan: true },
+    });
+    if (!calendar) throw new NotFoundException('Calendar not found');
+    if (calendar.ownerId !== ownerId) {
+      throw new ForbiddenException(
+        'Only the calendar owner can purchase premium for it',
+      );
+    }
+    if (calendar.groupPlan && calendar.groupPlan.isActive) {
+      throw new ForbiddenException(
+        'This calendar already has an active group plan',
+      );
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const plan = calendar.groupPlan
+        ? await tx.groupPlan.update({
+            where: { id: calendar.groupPlan.id },
+            data: { seats, isActive: true, expiresAt, provider, providerRef },
+          })
+        : await tx.groupPlan.create({
+            data: {
+              ownerId,
+              calendarId,
+              seats,
+              isActive: true,
+              expiresAt,
+              provider,
+              providerRef,
+            },
+          });
+
+      const updatedCalendar = await tx.calendar.update({
+        where: { id: calendarId },
+        data: {
+          isPremium: true,
+          premiumSeats: seats,
+          groupPlanId: plan.id,
+        },
+      });
+
+      return { plan, calendar: updatedCalendar };
+    });
+
+    await this.auditService.log({
+      userId: ownerId,
+      action: 'GROUP_PLAN_CREATED',
+      entity: 'GroupPlan',
+      entityId: result.plan.id,
+      metadata: { calendarId, seats },
+    });
+
+    return {
+      planId: result.plan.id,
+      calendarId,
+      premiumSeats: seats,
+      expiresAt,
+    };
+  }
+
+  /**
    * Downgrade manuel ou automatique (expiration)
    */
   async downgrade(planId: string, reason: 'MANUAL' | 'EXPIRED' = 'MANUAL') {

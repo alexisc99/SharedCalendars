@@ -11,6 +11,7 @@ export class CalendarReadDto {
 
   @ApiProperty() membersCount!: number;
   @ApiProperty() eventsCount!: number;
+  @ApiProperty() upcomingEventsCount!: number;
 
   @ApiProperty() publicIcsEnabled!: boolean;
 

@@ -7,6 +7,12 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { randomBytes } from 'crypto';
 import { MemberRole } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { PurchasesService } from '../purchases/purchases.service';
+import {
+  REFERRAL_ATTRIBUTION_WINDOW_HOURS,
+  REFERRAL_REWARD_DAYS,
+  REFERRAL_THRESHOLD,
+} from '../purchases/plans';
 
 const GRACE_PERIOD_DAYS = 7;
 
@@ -21,14 +27,16 @@ const INVITATION_LINK_TTL_DAYS = 7;
 // monétisation : volontairement généreux, aucun usage familial/amical
 // normal ne devrait jamais s'en approcher. S'applique à tous les
 // calendriers, y compris premium (qui peuvent avoir un plafond plus
-// restrictif via premiumSeats, vérifié séparément).
-const MAX_CALENDAR_MEMBERS = 50;
+// restrictif via premiumSeats, vérifié séparément). Relevé à 350 pour
+// laisser de la marge au-dessus du plus gros palier payant (300 places).
+const MAX_CALENDAR_MEMBERS = 350;
 
 @Injectable()
 export class InvitationsService {
   constructor(
     private prisma: PrismaService,
     private auditService: AuditService,
+    private purchasesService: PurchasesService,
   ) {}
 
   async createInvitation(calendarId: string, userId: string) {
@@ -108,6 +116,7 @@ export class InvitationsService {
         calendarId,
         token,
         expiresAt,
+        createdByUserId: userId,
       },
     });
 
@@ -185,10 +194,74 @@ export class InvitationsService {
       },
     });
 
+    // Best-effort : un souci d'attribution de parrainage ne doit jamais
+    // empêcher quelqu'un de rejoindre un calendrier.
+    try {
+      await this.attributeReferral(userId, invitation.createdByUserId);
+    } catch (err) {
+      console.error('[attributeReferral] failed', err);
+    }
+
     return {
       joined: true,
       calendarId,
     };
+  }
+
+  /**
+   * Parrainage : compte comme filleul un compte VRAIMENT nouveau (créé peu
+   * avant d'accepter ce lien) — pas juste "quelqu'un qui rejoint un
+   * calendrier de plus", sinon ça ne fait pas grandir l'app, juste
+   * remplir des calendriers existants avec des comptes déjà là.
+   */
+  private async attributeReferral(
+    newUserId: string,
+    referrerId: string | null,
+  ) {
+    if (!referrerId || referrerId === newUserId) return;
+
+    const newUser = await this.prisma.user.findUnique({
+      where: { id: newUserId },
+      select: { createdAt: true, referredByUserId: true },
+    });
+    if (!newUser || newUser.referredByUserId) return; // déjà attribué (first-touch)
+
+    const windowMs = REFERRAL_ATTRIBUTION_WINDOW_HOURS * 60 * 60 * 1000;
+    if (Date.now() - newUser.createdAt.getTime() > windowMs) return;
+
+    await this.prisma.user.update({
+      where: { id: newUserId },
+      data: { referredByUserId: referrerId },
+    });
+
+    const referralCount = await this.prisma.user.count({
+      where: { referredByUserId: referrerId },
+    });
+    if (referralCount < REFERRAL_THRESHOLD) return;
+
+    const alreadyRewarded = await this.prisma.auditLog.findFirst({
+      where: {
+        userId: referrerId,
+        action: 'REFERRAL_REWARD_GRANTED',
+        entity: 'User',
+        entityId: referrerId,
+      },
+    });
+    if (alreadyRewarded) return;
+
+    await this.purchasesService.grantBonusDays(
+      referrerId,
+      REFERRAL_REWARD_DAYS,
+      'referral',
+    );
+
+    await this.auditService.log({
+      userId: referrerId,
+      action: 'REFERRAL_REWARD_GRANTED',
+      entity: 'User',
+      entityId: referrerId,
+      metadata: { referralCount },
+    });
   }
 
   /** Liens actifs (non expirés) — pour que l'owner puisse voir et révoquer ce qui traîne. */

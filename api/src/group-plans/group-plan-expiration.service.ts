@@ -71,6 +71,58 @@ export class GroupPlanExpirationService {
     }
   }
 
+  // Même cycle de vie que les plans de groupe, mais pour le premium
+  // individuel (UserSubscription) — annulé (canceledAt) ou non, l'accès
+  // reste actif jusqu'à expiresAt, désactivé ici à l'échéance.
+  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  async handleUserSubscriptionsLifecycle() {
+    const now = new Date();
+
+    const subs = await this.prisma.userSubscription.findMany({
+      where: { isActive: true, expiresAt: { lte: now } },
+    });
+
+    for (const sub of subs) {
+      await this.prisma.$transaction([
+        this.prisma.userSubscription.update({
+          where: { id: sub.id },
+          data: { isActive: false },
+        }),
+        this.prisma.user.update({
+          where: { id: sub.userId },
+          data: { isPremium: false },
+        }),
+      ]);
+
+      const alreadyNotified = await this.prisma.auditLog.findFirst({
+        where: {
+          action: 'SUBSCRIPTION_EXPIRED',
+          entity: 'UserSubscription',
+          entityId: sub.id,
+        },
+      });
+      if (!alreadyNotified) {
+        await this.prisma.notification.create({
+          data: {
+            userId: sub.userId,
+            type: 'SYSTEM',
+            title: 'Abonnement premium expiré',
+            message: 'Ton abonnement premium individuel a expiré.',
+          },
+        });
+        await this.auditService.log({
+          userId: sub.userId,
+          action: 'SUBSCRIPTION_EXPIRED',
+          entity: 'UserSubscription',
+          entityId: sub.id,
+          metadata: {},
+        });
+      }
+
+      this.logger.log(`UserSubscription ${sub.id} expired`);
+    }
+  }
+
   /**
    * Empêche l’envoi multiple de la même notification
    */

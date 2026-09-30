@@ -58,12 +58,19 @@ model User {
   isPremium Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  // Parrainage : qui m'a fait rejoindre l'app (premier lien d'invitation
+  // accepté peu après mon inscription — attribution "first touch").
+  referredByUserId String?
+  referredBy       User?   @relation("UserReferral", fields: [referredByUserId], references: [id])
+  referrals        User[]  @relation("UserReferral")
+
   // Relations
   calendars                   Calendar[]                   @relation("UserCalendars")
   memberships                 CalendarMember[]
   events                      Event[]                      @relation("EventCreator")
   comments                    Comment[]
   deletedComments             Comment[]                    @relation("CommentDeletedBy")
+  createdInvitations          InvitationLink[]             @relation("InvitationCreatedBy")
   rsvps                       EventRsvp[]
   PollVote                    PollVote[]
   notifications               Notification[]
@@ -71,6 +78,7 @@ model User {
   auditLogs                   AuditLog[]
   externalCalendars           ExternalCalendar[]
   GroupPlan                   GroupPlan[]
+  subscriptions               UserSubscription[]
   userNotificationPreferences UserNotificationPreference[]
 }
 
@@ -129,6 +137,11 @@ model InvitationLink {
   // existantes lors de la migration (donc immédiatement expirées, ce qui est
   // le comportement souhaité pour d'anciens liens jamais bornés dans le temps).
   expiresAt  DateTime @default(now())
+
+  // Qui a généré ce lien — sert à l'attribution de parrainage (nullable pour
+  // ne pas casser d'anciennes lignes créées avant ce champ).
+  createdByUserId String?
+  createdBy       User?   @relation("InvitationCreatedBy", fields: [createdByUserId], references: [id])
 
   calendar Calendar @relation(fields: [calendarId], references: [id])
 }
@@ -350,12 +363,37 @@ model GroupPlan {
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id])
 
-  seats     Int
-  isActive  Boolean   @default(true)
-  expiresAt DateTime?
+  seats      Int
+  isActive   Boolean   @default(true)
+  expiresAt  DateTime?
+  canceledAt DateTime? // annulé mais encore actif jusqu'à expiresAt (comme un vrai abonnement)
 
   calendarId String?   @unique
   calendar   Calendar? @relation(fields: [calendarId], references: [id])
+
+  // Traçabilité du prestataire de paiement — "mock" aujourd'hui (bac à
+  // sable, aucun argent réel), remplacé par "revenuecat"/"stripe" etc. sans
+  // changer le reste du modèle le jour où un vrai paiement est branché.
+  provider    String  @default("mock")
+  providerRef String? // id de transaction/abonnement côté prestataire
+
+  createdAt DateTime @default(now())
+}
+
+// Premium individuel (User.isPremium) — jusqu'ici ce champ ne pouvait être
+// activé par aucun chemin applicatif. Ce modèle donne un historique
+// d'abonnement réel (même en bac à sable) au lieu d'un simple booléen opaque.
+model UserSubscription {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  isActive   Boolean   @default(true)
+  expiresAt  DateTime?
+  canceledAt DateTime? // annulé mais encore actif jusqu'à expiresAt (comme un vrai abonnement)
+
+  provider    String  @default("mock")
+  providerRef String?
 
   createdAt DateTime @default(now())
 }
