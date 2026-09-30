@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Alert, Modal, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Modal } from "react-native";
+import { Text } from "./themed/text";
+import { View } from "./themed/view";
+import { Pressable } from "./themed/pressable";
 // SDK 54 a remplacé l'API expo-file-system (classes File/Directory) — on
 // garde l'ancienne API via "/legacy" (cacheDirectory + downloadAsync avec
 // en-têtes), plus simple ici et toujours officiellement supportée.

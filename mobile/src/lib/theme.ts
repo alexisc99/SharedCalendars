@@ -1,8 +1,10 @@
+import { BRAND } from "./colors";
+
 export const FREE_THEMES = ["default", "blue", "green", "red"] as const;
 export const PREMIUM_THEMES = ["gold", "night-sky", "gradient-purple"] as const;
 
 export const THEME_COLORS: Record<string, string> = {
-  default: "#4f46e5",
+  default: BRAND,
   blue: "#2563eb",
   green: "#16a34a",
   red: "#dc2626",

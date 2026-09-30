@@ -1,7 +1,11 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
+import { TextInput } from "@/components/themed/text-input";
 import { Stack, useRouter } from "expo-router";
 import { api, ApiError } from "../src/lib/api";
+import { HomeHeaderButton } from "../components/home-header-button";
 
 type JoinResponse = { joined: boolean; calendarId: string };
 
@@ -35,7 +39,13 @@ export default function JoinScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16, gap: 12 }}>
-      <Stack.Screen options={{ title: "Rejoindre un calendrier" }} />
+      <Stack.Screen
+        options={{
+          title: "Rejoindre un calendrier",
+          headerShown: true,
+          headerRight: () => <HomeHeaderButton />,
+        }}
+      />
 
       <Text style={{ opacity: 0.7 }}>Colle ici le token d'invitation reçu.</Text>
 

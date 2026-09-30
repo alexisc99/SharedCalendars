@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
+import { TextInput } from "@/components/themed/text-input";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/use-theme-colors";
 import { api, ApiError } from "../../../src/lib/api";
 import { DateTimeField } from "../../../components/date-time-field";
 import { colorForTheme } from "../../../src/lib/theme";
@@ -38,6 +43,7 @@ export default function CreateEventScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
   const { me } = useSession();
 
   const [title, setTitle] = useState("");
@@ -177,7 +183,7 @@ export default function CreateEventScreen() {
           headerShown: true,
           headerTintColor: calendarColor || undefined,
           headerRight: () => <HomeHeaderButton />,
-          contentStyle: { paddingBottom: insets.bottom },
+          contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
         }}
       />
       <CalendarColorBar color={calendarColor} />

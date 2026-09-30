@@ -19,7 +19,11 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
         headerShown: false,
         tabBarButton: HapticTab,
-        sceneStyle: { paddingTop: insets.top },
+        sceneStyle: { paddingTop: insets.top, backgroundColor: Colors[colorScheme ?? "light"].background },
+        tabBarStyle: {
+          backgroundColor: Colors[colorScheme ?? "light"].surface,
+          borderTopColor: Colors[colorScheme ?? "light"].border,
+        },
       }}
     >
       <Tabs.Screen
@@ -57,15 +61,6 @@ export default function TabLayout() {
           tabBarBadge: unread > 0 ? unread : undefined,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="bell.fill" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="integrations"
-        options={{
-          title: "Intégrations",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="link" color={color} />
           ),
         }}
       />

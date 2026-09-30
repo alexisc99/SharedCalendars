@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Switch, ActivityIndicator, ScrollView } from "react-native";
+import { Switch, ActivityIndicator, ScrollView } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
 import { Stack } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/use-theme-colors";
 import { api, ApiError } from "../src/lib/api";
 import { HomeHeaderButton } from "../components/home-header-button";
 
@@ -22,6 +25,7 @@ type PreferenceRow = { type: string; enabled: boolean };
 
 export default function NotificationPreferencesScreen() {
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +82,7 @@ export default function NotificationPreferencesScreen() {
           title: "Préférences de notifications",
           headerShown: true,
           headerRight: () => <HomeHeaderButton />,
-          contentStyle: { paddingBottom: insets.bottom },
+          contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
         }}
       />
 

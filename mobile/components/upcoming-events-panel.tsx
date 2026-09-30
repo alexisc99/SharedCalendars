@@ -1,6 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { ActivityIndicator } from "react-native";
+import { Text } from "./themed/text";
+import { View } from "./themed/view";
+import { Pressable } from "./themed/pressable";
 import { formatEventRange } from "../src/lib/date";
+import { BRAND } from "../src/lib/colors";
 
 export type UpcomingEventItem = {
   id: string;
@@ -57,31 +61,19 @@ export function UpcomingEventsPanel({
                   padding: 10,
                   borderRadius: 10,
                   borderWidth: 1,
-                  flexDirection: "row",
-                  gap: 8,
-                  alignItems: "flex-start",
+                  borderLeftWidth: 8,
+                  borderLeftColor: item.color || BRAND,
                 }}
               >
-                <View
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    marginTop: 6,
-                    backgroundColor: item.color || "#4f46e5",
-                  }}
-                />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontWeight: "600" }}>{item.title}</Text>
-                  <Text style={{ opacity: 0.7 }}>
-                    {formatEventRange(item.startDateTime, item.endDateTime)}
+                <Text style={{ fontWeight: "600" }}>{item.title}</Text>
+                <Text style={{ opacity: 0.7 }}>
+                  {formatEventRange(item.startDateTime, item.endDateTime)}
+                </Text>
+                {item.subtitle ? (
+                  <Text style={{ opacity: 0.6, fontSize: 12 }}>
+                    {item.subtitle}
                   </Text>
-                  {item.subtitle ? (
-                    <Text style={{ opacity: 0.6, fontSize: 12 }}>
-                      {item.subtitle}
-                    </Text>
-                  ) : null}
-                </View>
+                ) : null}
               </Pressable>
             ))
           )}

@@ -1,8 +1,12 @@
 import React, { useCallback, useState } from "react";
-import { View, Text, ActivityIndicator, Pressable, ScrollView } from "react-native";
+import { ActivityIndicator, ScrollView } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/use-theme-colors";
 import { api, ApiError } from "../../src/lib/api";
 import { useSession } from "../../src/lib/session";
 import { formatEventRange } from "../../src/lib/date";
@@ -10,6 +14,8 @@ import { FREE_THEMES, PREMIUM_THEMES, THEME_COLORS, colorForTheme } from "../../
 import { CalendarColorBar } from "../../components/calendar-color-bar";
 import { HomeHeaderButton } from "../../components/home-header-button";
 import { AuthImage } from "../../components/auth-image";
+import { BRAND } from "../../src/lib/colors";
+import { roleLabel } from "../../src/lib/roles";
 
 type CalendarHomeResponse = {
   calendar: {
@@ -54,6 +60,7 @@ export default function CalendarHomeScreen() {
   const id = Array.isArray(idRaw) ? idRaw[0] : idRaw;
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
   const { me } = useSession();
 
   const [loading, setLoading] = useState(true);
@@ -121,7 +128,7 @@ export default function CalendarHomeScreen() {
           headerShown: true,
           headerTintColor: color || undefined,
           headerRight: () => <HomeHeaderButton />,
-          contentStyle: { paddingBottom: insets.bottom },
+          contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
         }}
       />
       <CalendarColorBar color={color} />
@@ -162,14 +169,26 @@ export default function CalendarHomeScreen() {
                 width: 12,
                 height: 12,
                 borderRadius: 6,
-                backgroundColor: color || "#4f46e5",
+                backgroundColor: color || BRAND,
               }}
             />
             <Text style={{ fontSize: 18, fontWeight: "600" }}>{name}</Text>
           </View>
-          <Text>Rôle: {data?.calendar.role}</Text>
+          <Text>Rôle: {data?.calendar.role ? roleLabel(data.calendar.role) : ""}</Text>
           <Text>Membres: {data?.members.total}</Text>
-          <Text>Premium: {data?.calendar.isPremium ? "Oui" : "Non"}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <Text>Premium: {data?.calendar.isPremium ? "Oui" : "Non"}</Text>
+            {!data?.calendar.isPremium && data?.permissions.canManagePremium ? (
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: "/premium", params: { calendarId: id } })
+                }
+                style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1 }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: "600" }}>Passer premium ✨</Text>
+              </Pressable>
+            ) : null}
+          </View>
 
           <Text style={{ marginTop: 8, fontWeight: "600" }}>
             Ma couleur pour ce calendrier
@@ -210,9 +229,13 @@ export default function CalendarHomeScreen() {
             ))}
           </View>
           {!hasPremium ? (
-            <Text style={{ opacity: 0.6, fontSize: 12 }}>
-              Plus de couleurs disponibles en passant toi-même ou ce calendrier en premium ✨
-            </Text>
+            <Pressable
+              onPress={() => router.push({ pathname: "/premium", params: { calendarId: id } })}
+            >
+              <Text style={{ opacity: 0.6, fontSize: 12, textDecorationLine: "underline" }}>
+                Plus de couleurs disponibles en passant toi-même ou ce calendrier en premium ✨
+              </Text>
+            </Pressable>
           ) : null}
           {themeError ? <Text style={{ color: "red" }}>{themeError}</Text> : null}
 

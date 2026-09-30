@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, Text } from "react-native";
+import { Text } from "./themed/text";
+import { Pressable } from "./themed/pressable";
 import { router } from "expo-router";
 
 /**

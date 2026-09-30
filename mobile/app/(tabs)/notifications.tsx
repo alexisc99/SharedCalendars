@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, FlatList, Pressable, ActivityIndicator, Alert } from "react-native";
+import { FlatList, ActivityIndicator, Alert } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
 import { useRouter } from "expo-router";
 import { api } from "../../src/lib/api";
 import type { CursorPage, NotificationItem } from "../../src/lib/types";
 import { useSession } from "../../src/lib/session";
 import { formatDateTime } from "../../src/lib/date";
+import { BRAND } from "../../src/lib/colors";
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -252,7 +256,7 @@ export default function NotificationsScreen() {
                 padding: 12,
                 borderRadius: 12,
                 borderWidth: checked ? 2 : 1,
-                borderColor: checked ? "#4f46e5" : undefined,
+                borderColor: checked ? BRAND : undefined,
                 opacity: unread || checked ? 1 : 0.6,
                 flexDirection: "row",
                 gap: 10,

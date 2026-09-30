@@ -1,29 +1,32 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * Jetons de couleur clair/sombre de l'app. Text et View (components/themed/)
+ * s'appuient dessus automatiquement — la plupart des écrans n'ont rien à
+ * faire de spécial pour être compatibles mode sombre.
  */
 
 import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+import { BRAND } from '../src/lib/colors';
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: '#1C1730',
+    background: '#FFFFFF',
+    surface: '#F6F4FB',
+    border: 'rgba(0,0,0,0.15)',
+    tint: BRAND,
+    icon: '#6B6580',
+    tabIconDefault: '#9B93B0',
+    tabIconSelected: BRAND,
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    text: '#F1EEFA',
+    background: '#141019',
+    surface: '#211B2C',
+    border: 'rgba(255,255,255,0.18)',
+    tint: BRAND,
+    icon: '#B8B0CC',
+    tabIconDefault: '#8A8299',
+    tabIconSelected: BRAND,
   },
 };
 

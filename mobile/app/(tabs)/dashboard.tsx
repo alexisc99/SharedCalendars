@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  Pressable,
   ActivityIndicator,
   ScrollView,
   RefreshControl,
 } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { api, ApiError } from "../../src/lib/api";
@@ -15,6 +15,7 @@ import type { DashboardStatsDto } from "../../src/lib/types";
 import { formatEventRange } from "../../src/lib/date";
 import { colorForTheme } from "../../src/lib/theme";
 import { AuthImage } from "../../components/auth-image";
+import { roleLabel } from "../../src/lib/roles";
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -116,7 +117,7 @@ export default function DashboardScreen() {
                   padding: 14,
                   borderRadius: 12,
                   borderWidth: 1,
-                  borderLeftWidth: 4,
+                  borderLeftWidth: 8,
                   borderLeftColor: eventColor,
                 }}
               >
@@ -156,8 +157,6 @@ export default function DashboardScreen() {
                 style={{
                   borderRadius: 12,
                   borderWidth: 1,
-                  borderLeftWidth: 4,
-                  borderLeftColor: color,
                   overflow: "hidden",
                 }}
               >
@@ -177,18 +176,29 @@ export default function DashboardScreen() {
                         backgroundColor: "rgba(0,0,0,0.45)",
                       }}
                     />
+                    <View style={{ padding: 14, paddingBottom: 6 }}>
+                      <Text style={{ fontWeight: "700", fontSize: 15, color: textColor }}>
+                        {c.name}
+                      </Text>
+                    </View>
                   </>
-                ) : null}
-
-                <View style={{ padding: 14, gap: 6 }}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <View
-                      style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }}
-                    />
-                    <Text style={{ fontWeight: "600", color: textColor }}>{c.name}</Text>
+                ) : (
+                  <View
+                    style={{
+                      backgroundColor: color,
+                      paddingVertical: 10,
+                      paddingHorizontal: 14,
+                    }}
+                  >
+                    <Text style={{ fontWeight: "700", fontSize: 15, color: "white" }} numberOfLines={1}>
+                      {c.name}
+                    </Text>
                   </View>
+                )}
+
+                <View style={{ padding: 14, paddingTop: hasCover ? 0 : 14, gap: 6 }}>
                   <Text style={{ opacity: hasCover ? 1 : 0.65, fontSize: 12, color: dimTextColor }}>
-                    {c.role} • {c.membersCount} membre{c.membersCount > 1 ? "s" : ""} •{" "}
+                    {roleLabel(c.role)} • {c.membersCount} membre{c.membersCount > 1 ? "s" : ""} •{" "}
                     {c.eventsCount} événement{c.eventsCount > 1 ? "s" : ""}
                   </Text>
 

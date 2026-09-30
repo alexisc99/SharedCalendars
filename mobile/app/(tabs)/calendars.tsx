@@ -1,5 +1,8 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { api, ApiError } from "../../src/lib/api";
@@ -13,6 +16,7 @@ import {
   startOfMonth,
 } from "../../src/lib/date";
 import { colorForTheme } from "../../src/lib/theme";
+import { GoogleLogo } from "../../components/google-logo";
 
 type FeedItem = {
   id: string;
@@ -80,6 +84,7 @@ export default function CalendarsScreen() {
     () =>
       monthEvents.map((e) => ({
         id: e.id,
+        title: e.title,
         startDateTime: e.startDateTime,
         color: colorForTheme(e.calendar.theme),
       })),
@@ -114,10 +119,25 @@ export default function CalendarsScreen() {
       <View
         style={{
           flexDirection: "row",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
           marginBottom: 12,
         }}
       >
+        <Pressable
+          onPress={() => router.push("/integrations/google/import")}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            borderRadius: 8,
+            borderWidth: 1,
+          }}
+        >
+          <GoogleLogo size={14} />
+          <Text>Importer Google</Text>
+        </Pressable>
         <Pressable
           onPress={() => router.push("/calendars/manage")}
           style={{
@@ -171,29 +191,17 @@ export default function CalendarsScreen() {
                 padding: 12,
                 borderRadius: 12,
                 borderWidth: 1,
-                flexDirection: "row",
-                gap: 10,
-                alignItems: "flex-start",
+                borderLeftWidth: 8,
+                borderLeftColor: colorForTheme(item.calendar.theme),
               }}
             >
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  marginTop: 6,
-                  backgroundColor: colorForTheme(item.calendar.theme),
-                }}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: "600" }}>{item.title}</Text>
-                <Text style={{ opacity: 0.7 }}>
-                  {formatEventRange(item.startDateTime, item.endDateTime)}
-                </Text>
-                <Text style={{ opacity: 0.6, fontSize: 12 }}>
-                  {item.calendar.name}
-                </Text>
-              </View>
+              <Text style={{ fontWeight: "600" }}>{item.title}</Text>
+              <Text style={{ opacity: 0.7 }}>
+                {formatEventRange(item.startDateTime, item.endDateTime)}
+              </Text>
+              <Text style={{ opacity: 0.6, fontSize: 12 }}>
+                {item.calendar.name}
+              </Text>
             </Pressable>
           ))
         )}

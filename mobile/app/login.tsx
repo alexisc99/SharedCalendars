@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
+import { TextInput } from "@/components/themed/text-input";
 import { useRouter } from "expo-router";
 import { useSession } from "../src/lib/session";
 import { ApiError } from "../src/lib/api";

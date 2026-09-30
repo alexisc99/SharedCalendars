@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  View,
-  Text,
   FlatList,
-  Pressable,
   ActivityIndicator,
   ScrollView,
 } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
 import { Stack } from "expo-router";
 import { api, ApiError } from "../../../src/lib/api";
 import type {
@@ -17,6 +17,7 @@ import type {
 } from "../../../src/lib/types";
 import { colorForTheme } from "../../../src/lib/theme";
 import { AuthImage } from "../../../components/auth-image";
+import { HomeHeaderButton } from "../../../components/home-header-button";
 
 export default function GoogleImportScreen() {
   // calendars (target)
@@ -183,19 +184,22 @@ export default function GoogleImportScreen() {
     loadCalendars();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => {
-    if (targetCalendarId) {
-      loadFirst(targetCalendarId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetCalendarId]);
-  const ready = !loadingFirst && !calLoading;
+  // Pas de useEffect sur targetCalendarId ici : chaque endroit qui le change
+  // (chargement initial, tap sur un calendrier) appelle déjà loadFirst()
+  // lui-même — un effet en plus déclenchait un second chargement à chaque
+  // changement, doublant le passage par l'état "loading" (flash à l'écran).
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: "Importer depuis Google" }} />
+      <Stack.Screen
+        options={{
+          title: "Importer depuis Google",
+          headerShown: true,
+          headerRight: () => <HomeHeaderButton />,
+        }}
+      />
 
-      {!ready ? (
+      {calLoading ? (
         <View
           style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
         >
@@ -216,24 +220,11 @@ export default function GoogleImportScreen() {
             <Text>Réessayer</Text>
           </Pressable>
         </View>
-      ) : error ? (
-        <View style={{ flex: 1, padding: 16, gap: 12 }}>
-          <Text style={{ color: "red" }}>{error}</Text>
-          <Pressable
-            onPress={() => {
-              if (targetCalendarId) loadFirst(targetCalendarId);
-            }}
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              alignItems: "center",
-              borderWidth: 1,
-            }}
-          >
-            <Text>Réessayer</Text>
-          </Pressable>
-        </View>
       ) : (
+        // Le sélecteur de calendrier et les boutons restent montés même
+        // pendant le chargement de la liste (changement de calendrier,
+        // pagination...) : seule la liste elle-même se met à jour, via son
+        // indicateur `refreshing` — plus de flash plein écran.
         <View style={{ flex: 1, padding: 16, gap: 12 }}>
           <Text style={{ fontWeight: "600" }}>Importer dans :</Text>
           <ScrollView
@@ -362,6 +353,25 @@ export default function GoogleImportScreen() {
               <Text>{importingPage ? "Import..." : "Importer cette page"}</Text>
             </Pressable>
           </View>
+
+          {error ? (
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: "red" }}>{error}</Text>
+              <Pressable
+                onPress={() => {
+                  if (targetCalendarId) loadFirst(targetCalendarId);
+                }}
+                style={{
+                  padding: 12,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  borderWidth: 1,
+                }}
+              >
+                <Text>Réessayer</Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           <FlatList
             data={items}

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, ImageStyle, StyleProp, Text, View } from "react-native";
+import { ActivityIndicator, Image, ImageStyle, StyleProp } from "react-native";
+import { Text } from "./themed/text";
+import { View } from "./themed/view";
 import { getToken } from "../src/lib/authToken";
 import { API_BASE_URL } from "../src/config/env";
 import { fetchWithRetry } from "../src/lib/api";

@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, Pressable, ActivityIndicator, ScrollView } from "react-native";
+import { ActivityIndicator, ScrollView } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
+import { TextInput } from "@/components/themed/text-input";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/use-theme-colors";
 import { api, ApiError } from "../../../src/lib/api";
 import type { EventDetail } from "../../../src/lib/types";
 import { DateTimeField } from "../../../components/date-time-field";
@@ -18,6 +23,7 @@ export default function EditEventScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
   const { me } = useSession();
 
   const [loading, setLoading] = useState(true);
@@ -115,7 +121,7 @@ export default function EditEventScreen() {
           title: "Modifier l'événement",
           headerShown: true,
           headerRight: () => <HomeHeaderButton />,
-          contentStyle: { paddingBottom: insets.bottom },
+          contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
         }}
       />
 

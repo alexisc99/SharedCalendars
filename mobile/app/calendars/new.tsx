@@ -1,8 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
+import { TextInput } from "@/components/themed/text-input";
 import { Stack, useRouter } from "expo-router";
 import { api, ApiError } from "../../src/lib/api";
 import { FREE_THEMES, THEME_COLORS, colorForTheme } from "../../src/lib/theme";
+import { HomeHeaderButton } from "../../components/home-header-button";
 
 type CreateCalendarResponse = {
   success: boolean;
@@ -46,7 +51,13 @@ export default function NewCalendarScreen() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Stack.Screen options={{ title: "Nouveau calendrier" }} />
+      <Stack.Screen
+        options={{
+          title: "Nouveau calendrier",
+          headerShown: true,
+          headerRight: () => <HomeHeaderButton />,
+        }}
+      />
 
       <Text>Nom *</Text>
       <TextInput

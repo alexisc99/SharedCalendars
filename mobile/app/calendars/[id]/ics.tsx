@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
+import { ActivityIndicator, Alert } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/use-theme-colors";
 // SDK 54 : ancienne API (cacheDirectory + downloadAsync avec en-têtes) via "/legacy".
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -41,6 +45,7 @@ export default function CalendarIcsScreen() {
   const calendarId = Array.isArray(idRaw) ? idRaw[0] : idRaw;
 
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -195,7 +200,7 @@ export default function CalendarIcsScreen() {
             title: "ICS public",
             headerShown: true,
             headerRight: () => <HomeHeaderButton />,
-            contentStyle: { paddingBottom: insets.bottom },
+            contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
           }}
         />
         <CalendarColorBar color={calendarColor ?? colorForTheme(null)} />
@@ -225,7 +230,7 @@ export default function CalendarIcsScreen() {
           headerShown: true,
           headerTintColor: calendarColor || undefined,
           headerRight: () => <HomeHeaderButton />,
-          contentStyle: { paddingBottom: insets.bottom },
+          contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
         }}
       />
       <CalendarColorBar color={calendarColor ?? colorForTheme(null)} />

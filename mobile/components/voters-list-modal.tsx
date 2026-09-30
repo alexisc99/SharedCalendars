@@ -1,22 +1,19 @@
 import React from "react";
-import { FlatList, Modal, Pressable, Text, View } from "react-native";
+import { FlatList, Modal, useColorScheme } from "react-native";
+import { Text } from "./themed/text";
+import { View } from "./themed/view";
+import { Pressable } from "./themed/pressable";
 import { Avatar } from "./avatar";
+import { RSVP_LABELS, RsvpStatus } from "../src/lib/rsvp";
+import { Colors } from "../constants/theme";
 
-type Status = "YES" | "MAYBE" | "NO";
-
-type Voter = { userId: string; name: string; avatarUrl: string | null };
+type Voter = { userId: string; name: string; avatarUrl: string | null; isPremium: boolean };
 
 type Props = {
-  status: Status | null;
+  status: RsvpStatus | null;
   color: string;
   voters: Voter[];
   onClose: () => void;
-};
-
-const STATUS_LABEL: Record<Status, string> = {
-  YES: "Présent·e",
-  MAYBE: "Peut-être",
-  NO: "Absent·e",
 };
 
 /**
@@ -26,6 +23,7 @@ const STATUS_LABEL: Record<Status, string> = {
  * membres.
  */
 export function VotersListModal({ status, color, voters, onClose }: Props) {
+  const scheme = useColorScheme() ?? "light";
   if (!status) return null;
 
   return (
@@ -42,14 +40,14 @@ export function VotersListModal({ status, color, voters, onClose }: Props) {
         <Pressable
           onPress={() => {}}
           style={{
-            backgroundColor: "white",
+            backgroundColor: Colors[scheme].background,
             borderRadius: 14,
             padding: 16,
             maxHeight: "70%",
           }}
         >
           <Text style={{ fontWeight: "700", fontSize: 16, color, marginBottom: 4 }}>
-            {status} · {STATUS_LABEL[status]}
+            {RSVP_LABELS[status]}
           </Text>
           <Text style={{ opacity: 0.6, fontSize: 12, marginBottom: 10 }}>
             {voters.length} personne{voters.length > 1 ? "s" : ""}
@@ -60,11 +58,11 @@ export function VotersListModal({ status, color, voters, onClose }: Props) {
               data={voters}
               keyExtractor={(v) => v.userId}
               ItemSeparatorComponent={() => (
-                <View style={{ height: 1, backgroundColor: "#eee" }} />
+                <View style={{ height: 1, backgroundColor: Colors[scheme].border }} />
               )}
               renderItem={({ item }) => (
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 }}>
-                  <Avatar uri={item.avatarUrl} name={item.name} size={28} />
+                  <Avatar uri={item.avatarUrl} name={item.name} size={28} isPremium={item.isPremium} />
                   <Text>{item.name}</Text>
                 </View>
               )}

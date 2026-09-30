@@ -1,5 +1,5 @@
 import React from "react";
-import { View } from "react-native";
+import { View } from "./themed/view";
 
 /**
  * Bande de couleur pleine largeur affichée en haut de l'écran quand un

@@ -1,22 +1,22 @@
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
   ActivityIndicator,
   FlatList,
-  Pressable,
   Alert,
 } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/use-theme-colors";
 import { api, ApiError } from "../../../src/lib/api";
 import { useSession } from "../../../src/lib/session";
 import { colorForTheme } from "../../../src/lib/theme";
 import { CalendarColorBar } from "../../../components/calendar-color-bar";
 import { HomeHeaderButton } from "../../../components/home-header-button";
 import { Avatar } from "../../../components/avatar";
-
-type MemberRole = "owner" | "admin" | "editor" | "viewer" | "member";
+import { MemberRole, ROLE_LABELS } from "../../../src/lib/roles";
 
 type MemberItem = {
   id: string;
@@ -27,6 +27,7 @@ type MemberItem = {
     email: string;
     name: string | null;
     avatarUrl: string | null;
+    isPremium: boolean;
   };
 };
 
@@ -44,6 +45,7 @@ export default function CalendarMembersScreen() {
   const calendarColor = colorForTheme(calendarTheme);
 
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
   const { me } = useSession();
 
   const [items, setItems] = useState<MemberItem[]>([]);
@@ -156,7 +158,7 @@ export default function CalendarMembersScreen() {
           headerShown: true,
           headerTintColor: calendarColor || undefined,
           headerRight: () => <HomeHeaderButton />,
-          contentStyle: { paddingBottom: insets.bottom },
+          contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
         }}
       />
       <CalendarColorBar color={calendarColor} />
@@ -210,14 +212,19 @@ export default function CalendarMembersScreen() {
                 }}
               >
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <Avatar uri={item.user.avatarUrl} name={item.user.name ?? item.user.email} size={36} />
+                  <Avatar
+                    uri={item.user.avatarUrl}
+                    name={item.user.name ?? item.user.email}
+                    size={36}
+                    isPremium={item.user.isPremium}
+                  />
                   <Text style={{ fontSize: 16, fontWeight: "600" }}>
                     {item.user.name || item.user.email}
                     {isSelf ? " (toi)" : ""}
                   </Text>
                 </View>
                 <Text style={{ opacity: 0.7 }}>{item.user.email}</Text>
-                <Text>Rôle : {item.role}</Text>
+                <Text>Rôle : {ROLE_LABELS[item.role]}</Text>
 
                 {canEditThisMember && !isBusy && availableRoles.length > 0 ? (
                   <View
@@ -239,7 +246,7 @@ export default function CalendarMembersScreen() {
                           borderWidth: 1,
                         }}
                       >
-                        <Text style={{ fontSize: 12 }}>→ {r}</Text>
+                        <Text style={{ fontSize: 12 }}>→ {ROLE_LABELS[r]}</Text>
                       </Pressable>
                     ))}
                   </View>

@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Text } from "./themed/text";
+import { View } from "./themed/view";
+import { Pressable } from "./themed/pressable";
+import { TextInput } from "./themed/text-input";
 import { formatLeadTime } from "../src/lib/date";
 
 const PRESETS: { minutesBefore: number; label: string }[] = [

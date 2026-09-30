@@ -36,6 +36,7 @@ export type CalendarSummary = {
   role: "owner" | "admin" | "editor" | "viewer" | "member";
   membersCount: number;
   eventsCount: number;
+  upcomingEventsCount: number;
   createdAt: string; // ISO UTC
 };
 
@@ -104,7 +105,7 @@ export type EventDetail = {
   endDateTime: string;
   type: string;
   status: "PUBLISHED" | "PENDING";
-  createdBy: { id: string; name: string; avatarUrl: string | null };
+  createdBy: { id: string; name: string; avatarUrl: string | null; isPremium: boolean };
   reminders: any[];
   rsvp: {
     mine: "YES" | "MAYBE" | "NO" | null;
@@ -113,6 +114,7 @@ export type EventDetail = {
       userId: string;
       name: string;
       avatarUrl: string | null;
+      isPremium: boolean;
       status: "YES" | "MAYBE" | "NO";
     }[];
   };
@@ -227,4 +229,51 @@ export type DashboardStatsDto = {
   unreadNotifications: number;
   upcomingEvents: DashboardUpcomingEvent[];
   calendars: DashboardCalendarSummary[];
+};
+
+export type IndividualPlan = {
+  id: "individual_monthly";
+  target: "INDIVIDUAL";
+  label: string;
+  priceCents: number;
+  currency: "EUR";
+  periodDays: number;
+};
+
+export type GroupSeatTier = {
+  id: string;
+  label: string;
+  maxSeats: number;
+  monthlyPriceCents: number;
+  annualPriceCents: number;
+};
+
+export type PlansResponse = {
+  individual: IndividualPlan;
+  groupTiers: GroupSeatTier[];
+  trialDays: number;
+};
+
+export type MyPurchasesStatus = {
+  individual: {
+    subscriptionId: string;
+    provider: string;
+    expiresAt: string;
+    canceledAt: string | null;
+  } | null;
+  trialAvailable: boolean;
+  referral: {
+    count: number;
+    threshold: number;
+    rewardDays: number;
+    rewardGranted: boolean;
+  };
+  groupPlans: {
+    planId: string;
+    calendarId: string | null;
+    calendarName: string | null;
+    seats: number;
+    expiresAt: string | null;
+    canceledAt: string | null;
+  }[];
 };

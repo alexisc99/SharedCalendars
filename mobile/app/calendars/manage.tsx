@@ -1,17 +1,18 @@
 import React, { useCallback, useState } from "react";
 import {
-  View,
-  Text,
-  Pressable,
   ActivityIndicator,
   FlatList,
 } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
 import { Stack, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { api, ApiError } from "../../src/lib/api";
 import type { CalendarSummary } from "../../src/lib/types";
 import { colorForTheme } from "../../src/lib/theme";
 import { AuthImage } from "../../components/auth-image";
+import { HomeHeaderButton } from "../../components/home-header-button";
 
 export default function ManageCalendarsScreen() {
   const [loading, setLoading] = useState(true);
@@ -45,7 +46,13 @@ export default function ManageCalendarsScreen() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      <Stack.Screen options={{ title: "Mes calendriers" }} />
+      <Stack.Screen
+        options={{
+          title: "Mes calendriers",
+          headerShown: true,
+          headerRight: () => <HomeHeaderButton />,
+        }}
+      />
 
       <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
         <Pressable
@@ -117,8 +124,6 @@ export default function ManageCalendarsScreen() {
               style={{
                 borderRadius: 12,
                 borderWidth: 1,
-                borderLeftWidth: 4,
-                borderLeftColor: color,
                 overflow: "hidden",
               }}
             >
@@ -127,7 +132,19 @@ export default function ManageCalendarsScreen() {
                   uri={item.coverImageUrl}
                   style={{ width: "100%", aspectRatio: 16 / 9 }}
                 />
-              ) : null}
+              ) : (
+                <View
+                  style={{
+                    backgroundColor: color,
+                    paddingVertical: 12,
+                    paddingHorizontal: 14,
+                  }}
+                >
+                  <Text style={{ fontSize: 16, fontWeight: "700", color: "white" }} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                </View>
+              )}
               <View style={{ padding: 12 }}>
               <View
                 style={{
@@ -136,26 +153,30 @@ export default function ManageCalendarsScreen() {
                   justifyContent: "space-between",
                 }}
               >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 8,
-                    flex: 1,
-                  }}
-                >
+                {item.coverImageUrl ? (
                   <View
                     style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: 5,
-                      backgroundColor: color,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      flex: 1,
                     }}
-                  />
-                  <Text style={{ fontSize: 16, fontWeight: "600" }}>
-                    {item.name}
-                  </Text>
-                </View>
+                  >
+                    <View
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: color,
+                      }}
+                    />
+                    <Text style={{ fontSize: 16, fontWeight: "600" }}>
+                      {item.name}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ flex: 1 }} />
+                )}
 
                 <Pressable
                   onPress={() =>
@@ -170,13 +191,10 @@ export default function ManageCalendarsScreen() {
                   <Text style={{ fontSize: 18 }}>⚙</Text>
                 </Pressable>
               </View>
-              <Text>Rôle: {item.role}</Text>
-              <Text>
-                Membres: {item.membersCount} • Événements: {item.eventsCount}
-              </Text>
-              <Text>Premium: {item.isPremium ? "Oui" : "Non"}</Text>
-              <Text>
-                ICS public: {item.publicIcsEnabled ? "Activé" : "Désactivé"}
+              <Text style={{ opacity: 0.6, fontSize: 13, marginTop: 4 }}>
+                {item.upcomingEventsCount === 0
+                  ? "Aucun événement à venir"
+                  : `${item.upcomingEventsCount} événement${item.upcomingEventsCount > 1 ? "s" : ""} à venir`}
               </Text>
               </View>
             </Pressable>

@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { Platform, Pressable, Text, View } from "react-native";
+import { Platform } from "react-native";
+import { Text } from "./themed/text";
+import { View } from "./themed/view";
+import { Pressable } from "./themed/pressable";
 import DateTimePicker, {
   DateTimePickerAndroid,
   type DateTimePickerEvent,

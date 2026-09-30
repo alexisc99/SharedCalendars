@@ -1,5 +1,7 @@
 import React, { useEffect } from "react";
-import { View, Text, ActivityIndicator } from "react-native";
+import { ActivityIndicator } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
 import { useRouter } from "expo-router";
 import { useSession } from "../../src/lib/session";
 

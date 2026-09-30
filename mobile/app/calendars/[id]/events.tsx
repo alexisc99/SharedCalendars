@@ -1,8 +1,12 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { View, Text, Pressable, ScrollView } from "react-native";
+import { ScrollView } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/use-theme-colors";
 import { api, ApiError } from "../../../src/lib/api";
 import { MonthCalendar, MonthCalendarEvent } from "../../../components/month-calendar";
 import { UpcomingEventsPanel, UpcomingEventItem } from "../../../components/upcoming-events-panel";
@@ -31,6 +35,7 @@ export default function CalendarEventsScreen() {
   const calendarName = (Array.isArray(nameRaw) ? nameRaw[0] : nameRaw) || "Calendrier";
 
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
 
   const [month, setMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -86,6 +91,7 @@ export default function CalendarEventsScreen() {
     () =>
       monthItems.map((e) => ({
         id: e.id,
+        title: e.title,
         startDateTime: e.startDateTime,
         color: calendarColor,
       })),
@@ -118,7 +124,7 @@ export default function CalendarEventsScreen() {
           headerShown: true,
           headerTintColor: calendarColor,
           headerRight: () => <HomeHeaderButton />,
-          contentStyle: { paddingBottom: insets.bottom },
+          contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
         }}
       />
       <CalendarColorBar color={calendarColor} />

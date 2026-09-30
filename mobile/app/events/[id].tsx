@@ -1,15 +1,16 @@
 import React, { useEffect, useState } from "react";
 import {
   ScrollView,
-  View,
-  Text,
   ActivityIndicator,
-  Pressable,
-  TextInput,
   Alert,
 } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
+import { TextInput } from "@/components/themed/text-input";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/use-theme-colors";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { GoogleLogo } from "../../components/google-logo";
@@ -23,15 +24,10 @@ import { formatDateTime, formatEventRange, formatLeadTime } from "../../src/lib/
 import { HomeHeaderButton } from "../../components/home-header-button";
 import { useSession } from "../../src/lib/session";
 import { getHiddenFileIds, hideFile, unhideFiles } from "../../src/lib/hidden-files";
+import { RSVP_COLORS, RSVP_LABELS } from "../../src/lib/rsvp";
 
 type UploadFileResponse = { success: boolean; id: string; data: { id: string } };
 type CalendarMeta = { isPremium: boolean; members: { userId: string; role: string }[] };
-
-const RSVP_COLORS: Record<"YES" | "MAYBE" | "NO", string> = {
-  YES: "#22c55e",
-  MAYBE: "#f59e0b",
-  NO: "#ef4444",
-};
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;
@@ -46,6 +42,7 @@ export default function EventDetailScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
   const { me } = useSession();
 
   const [loading, setLoading] = useState(true);
@@ -437,7 +434,7 @@ export default function EventDetailScreen() {
           title: data?.title ?? "Événement",
           headerShown: true,
           headerRight: () => <HomeHeaderButton />,
-          contentStyle: { paddingBottom: insets.bottom },
+          contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
         }}
       />
 
@@ -486,7 +483,12 @@ export default function EventDetailScreen() {
           <Text>{formatEventRange(data.startDateTime, data.endDateTime)}</Text>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Avatar uri={data.createdBy.avatarUrl} name={data.createdBy.name} size={22} />
+            <Avatar
+              uri={data.createdBy.avatarUrl}
+              name={data.createdBy.name}
+              size={22}
+              isPremium={data.createdBy.isPremium}
+            />
             <Text>Créé par : {data.createdBy.name}</Text>
           </View>
 
@@ -602,7 +604,7 @@ export default function EventDetailScreen() {
                     }}
                   >
                     <Text style={{ color: selected ? color : undefined, fontWeight: selected ? "700" : "400" }}>
-                      {status}
+                      {RSVP_LABELS[status]}
                     </Text>
                   </Pressable>
                   <Pressable onPress={() => setVoterListStatus(status)}>
@@ -735,7 +737,7 @@ export default function EventDetailScreen() {
                         key={c.id}
                         style={{ padding: 10, borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 8 }}
                       >
-                        <Avatar uri={c.user?.avatarUrl} name={c.user?.name} size={28} />
+                        <Avatar uri={c.user?.avatarUrl} name={c.user?.name} size={28} isPremium={c.user?.isPremium} />
                         <View style={{ flex: 1 }}>
                           <Text style={{ fontWeight: "600" }}>{c.user?.name ?? "Utilisateur"}</Text>
                           <Text style={{ fontStyle: "italic", opacity: 0.6 }}>
@@ -760,7 +762,7 @@ export default function EventDetailScreen() {
                     key={c.id}
                     style={{ padding: 10, borderRadius: 10, borderWidth: 1, flexDirection: "row", gap: 8 }}
                   >
-                    <Avatar uri={c.user?.avatarUrl} name={c.user?.name} size={28} />
+                    <Avatar uri={c.user?.avatarUrl} name={c.user?.name} size={28} isPremium={c.user?.isPremium} />
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
                         <Text style={{ fontWeight: "600" }}>

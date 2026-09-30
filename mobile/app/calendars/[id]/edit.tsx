@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
   ScrollView,
   ActivityIndicator,
   Alert,
 } from "react-native";
+import { Text } from "@/components/themed/text";
+import { View } from "@/components/themed/view";
+import { Pressable } from "@/components/themed/pressable";
+import { TextInput } from "@/components/themed/text-input";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
-import { useLocalSearchParams, Stack, useRouter } from "expo-router";
+import { Link, useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useThemeColors } from "@/hooks/use-theme-colors";
 import { api, ApiError } from "../../../src/lib/api";
 import { useSession } from "../../../src/lib/session";
 import { FREE_THEMES, PREMIUM_THEMES, THEME_COLORS, colorForTheme } from "../../../src/lib/theme";
@@ -43,6 +44,7 @@ export default function EditCalendarScreen() {
 
   const { me } = useSession();
   const insets = useSafeAreaInsets();
+  const themeColors = useThemeColors();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -205,7 +207,7 @@ export default function EditCalendarScreen() {
             title: "Modifier",
             headerShown: true,
             headerRight: () => <HomeHeaderButton />,
-            contentStyle: { paddingBottom: insets.bottom },
+            contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
           }}
         />
         <CalendarColorBar color={previewColor} />
@@ -226,7 +228,7 @@ export default function EditCalendarScreen() {
             title: "Modifier",
             headerShown: true,
             headerRight: () => <HomeHeaderButton />,
-            contentStyle: { paddingBottom: insets.bottom },
+            contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
           }}
         />
         <CalendarColorBar color={previewColor} />
@@ -256,7 +258,7 @@ export default function EditCalendarScreen() {
           headerShown: true,
           headerTintColor: previewColor,
           headerRight: () => <HomeHeaderButton />,
-          contentStyle: { paddingBottom: insets.bottom },
+          contentStyle: { paddingBottom: insets.bottom, backgroundColor: themeColors.background },
         }}
       />
       <CalendarColorBar color={previewColor} />
@@ -306,9 +308,13 @@ export default function EditCalendarScreen() {
         ))}
       </View>
       {!calendar?.isPremium ? (
-        <Text style={{ opacity: 0.6, fontSize: 12 }}>
-          Passe en premium pour débloquer plus de thèmes ✨
-        </Text>
+        <Link href="/premium" asChild>
+          <Pressable>
+            <Text style={{ opacity: 0.6, fontSize: 12, textDecorationLine: "underline" }}>
+              Passe ce calendrier en premium pour débloquer plus de thèmes ✨
+            </Text>
+          </Pressable>
+        </Link>
       ) : null}
 
       {calendar?.isPremium ? (
